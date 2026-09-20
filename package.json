@@ -1,0 +1,9 @@
+{
+	"name": "roamly",
+	"private": true,
+	"scripts": {
+		"dev:web": "pnpm --filter web dev",
+		"dev:api": "pnpm --filter api start:dev"
+	},
+	"packageManager": "pnpm@12.5.1"
+}
