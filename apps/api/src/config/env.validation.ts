@@ -10,6 +10,8 @@ const envSchema = z.object({
   JWT_SECRET: z.string().min(32),
   JWT_ACCESS_TTL: jwtDurationSchema.default('15m'),
   REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(30),
+
+  FRONTEND_ORIGIN: z.url(),
 });
 
 export type Env = z.infer<typeof envSchema>;

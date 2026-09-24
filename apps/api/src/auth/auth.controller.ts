@@ -12,6 +12,11 @@ import { ConfigService } from '@nestjs/config';
 import { LoginResponse } from './types/login-response.type.js';
 import { LoginDto } from './dto/login.dto.js';
 import type { Request, Response } from 'express';
+import { Public } from './decorators/public.decorator.js';
+import {
+  REFRESH_TOKEN_COOKIE_NAME,
+  REFRESH_TOKEN_COOKIE_PATH,
+} from './auth.constants.js';
 
 @Controller('auth')
 export class AuthController {
@@ -20,11 +25,13 @@ export class AuthController {
     private readonly configService: ConfigService,
   ) {}
 
+  @Public()
   @Post('register')
   register(@Body() registerDto: RegisterDto) {
     return this.authService.register(registerDto);
   }
 
+  @Public()
   @Post('login')
   async login(
     @Body() loginDto: LoginDto,
@@ -36,11 +43,11 @@ export class AuthController {
       'REFRESH_TOKEN_TTL_DAYS',
     );
 
-    response.cookie('refresh_token', result.refreshToken, {
+    response.cookie(REFRESH_TOKEN_COOKIE_NAME, result.refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      path: '/auth',
+      path: REFRESH_TOKEN_COOKIE_PATH,
       maxAge: refreshTokenTtlDays * 24 * 60 * 60 * 1000,
     });
 
@@ -50,12 +57,14 @@ export class AuthController {
     };
   }
 
+  @Public()
   @Post('refresh')
   async refresh(
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ): Promise<{ accessToken: string }> {
-    const refreshToken = request.cookies?.refresh_token as string | undefined;
+    const refreshToken = request.cookies?.[REFRESH_TOKEN_COOKIE_NAME] as
+      string | undefined;
 
     if (!refreshToken) {
       throw new UnauthorizedException('Refresh token is missing');
@@ -67,11 +76,11 @@ export class AuthController {
       'REFRESH_TOKEN_TTL_DAYS',
     );
 
-    response.cookie('refresh_token', result.refreshToken, {
+    response.cookie(REFRESH_TOKEN_COOKIE_NAME, result.refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      path: '/auth',
+      path: REFRESH_TOKEN_COOKIE_PATH,
       maxAge: refreshTokenTtlDays * 24 * 60 * 60 * 1000,
     });
 
@@ -80,22 +89,24 @@ export class AuthController {
     };
   }
 
+  @Public()
   @Post('logout')
   async logout(
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ): Promise<void> {
-    const refreshToken = request.cookies?.refresh_token as string | undefined;
+    const refreshToken = request.cookies?.[REFRESH_TOKEN_COOKIE_NAME] as
+      string | undefined;
 
     if (refreshToken) {
       await this.authService.logout(refreshToken);
     }
 
-    response.clearCookie('refresh_token', {
+    response.clearCookie(REFRESH_TOKEN_COOKIE_NAME, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      path: '/auth',
+      path: REFRESH_TOKEN_COOKIE_PATH,
     });
   }
 }
