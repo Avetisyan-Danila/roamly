@@ -7,9 +7,10 @@ import { Prisma } from '../generated/prisma/client.js';
 import { TokenService } from './token.service.js';
 import { ConfigService } from '@nestjs/config';
 import { UnauthorizedException } from '@nestjs/common';
+
 import type { LoginDto } from './dto/login.dto.js';
 import type { LoginResult } from './types/login-result.type.js';
-import { RefreshResult } from './types/refresh-result.type.js';
+import type { RefreshResult } from './types/refresh-result.type.js';
 
 @Injectable()
 export class AuthService {

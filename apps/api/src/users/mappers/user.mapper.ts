@@ -1,5 +1,5 @@
 import type { UserModel } from '../../generated/prisma/models/User.js';
-import { UserResponseDto } from '../dto/user-response.dto.js';
+import type { UserResponseDto } from '../dto/user-response.dto.js';
 
 export class UserMapper {
   static toResponse(user: UserModel): UserResponseDto {

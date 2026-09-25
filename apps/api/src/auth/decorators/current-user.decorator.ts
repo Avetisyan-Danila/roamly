@@ -3,6 +3,7 @@ import {
   ExecutionContext,
   UnauthorizedException,
 } from '@nestjs/common';
+
 import type { Request } from 'express';
 import type { AuthenticatedUser } from '../types/authenticated-user.type.js';
 
