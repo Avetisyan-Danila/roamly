@@ -1,3 +1,4 @@
+import { LogoutButton } from "@/features/logout"
 import { getCurrentUser } from "@/entities/user"
 
 export default async function ProfilePage() {
@@ -12,6 +13,8 @@ export default async function ProfilePage() {
 			</p>
 
 			<p>{user.email}</p>
+
+			<LogoutButton />
 		</main>
 	)
 }
