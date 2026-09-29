@@ -1,7 +1,7 @@
-import { usersApi } from "@/lib/users/users"
+import { getCurrentUser } from "@/entities/user"
 
 export default async function ProfilePage() {
-	const user = await usersApi.getMe()
+	const user = await getCurrentUser()
 
 	return (
 		<main>

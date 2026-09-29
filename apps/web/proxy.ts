@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import {
 	ACCESS_TOKEN_COOKIE_NAME,
 	REFRESH_TOKEN_COOKIE_NAME,
-} from "./lib/auth/auth.constants"
+} from "@/shared/config"
 
 import type { NextRequest } from "next/server"
 

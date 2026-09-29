@@ -1,4 +1,4 @@
-import { ApiError, parseErrorResponse } from "./api-error"
+import { ApiError, parseErrorResponse } from "../api-error"
 
 type ApiRequestOptions = Omit<RequestInit, "body"> & {
 	json?: unknown

@@ -2,8 +2,9 @@
 
 import { useRouter } from "next/navigation"
 import { useState } from "react"
-import { ApiError } from "@/lib/api/api-error"
-import { authApi } from "@/lib/auth/auth"
+
+import { login } from "../api/login"
+import { ApiError } from "@/shared/api/browser"
 
 export function LoginForm() {
 	const router = useRouter()
@@ -20,7 +21,7 @@ export function LoginForm() {
 		setIsPending(true)
 
 		try {
-			await authApi.login({
+			await login({
 				email,
 				password,
 			})

@@ -1,8 +1,8 @@
 import "server-only"
 
 import { cookies } from "next/headers"
-import { ApiError, parseErrorResponse } from "./api-error"
-import { ACCESS_TOKEN_COOKIE_NAME } from "../auth/auth.constants"
+import { ApiError, parseErrorResponse } from "../api-error"
+import { ACCESS_TOKEN_COOKIE_NAME } from "../../config"
 
 type ApiRequestOptions = Omit<RequestInit, "body"> & {
 	json?: unknown
