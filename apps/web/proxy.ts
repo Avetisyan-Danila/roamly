@@ -33,6 +33,7 @@ export async function proxy(request: NextRequest) {
 		method: "POST",
 		headers: {
 			Cookie: `${REFRESH_TOKEN_COOKIE_NAME}=${refreshToken}`,
+			"X-CSRF-Protection": "enabled",
 		},
 		cache: "no-store",
 	})

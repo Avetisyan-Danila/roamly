@@ -29,6 +29,12 @@ async function request<T>(
 		headers.set("Content-Type", "application/json")
 	}
 
+	const method = (requestOptions.method ?? "GET").toUpperCase()
+
+	if (["POST", "PUT", "PATCH", "DELETE"].includes(method)) {
+		headers.set("X-CSRF-Protection", "enabled")
+	}
+
 	const response = await fetch(`${apiUrl}${path}`, {
 		...requestOptions,
 		headers,
@@ -71,6 +77,9 @@ async function performRefresh(): Promise<void> {
 	const response = await fetch(`${apiUrl}/auth/refresh`, {
 		method: "POST",
 		credentials: "include",
+		headers: {
+			"X-CSRF-Protection": "enabled",
+		},
 	})
 
 	if (!response.ok) {

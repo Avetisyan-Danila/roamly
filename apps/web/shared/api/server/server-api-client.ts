@@ -27,6 +27,14 @@ export async function serverApiClient<T>(
 		headers.set("Content-Type", "application/json")
 	}
 
+	const method = (requestOptions.method ?? "GET").toUpperCase()
+
+	const isUnsafeMethod = !["GET", "HEAD", "OPTIONS"].includes(method)
+
+	if (isUnsafeMethod) {
+		headers.set("X-CSRF-Protection", "enabled")
+	}
+
 	if (auth) {
 		const cookieStore = await cookies()
 		const accessToken = cookieStore.get(ACCESS_TOKEN_COOKIE_NAME)?.value
