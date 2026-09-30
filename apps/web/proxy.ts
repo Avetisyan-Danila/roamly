@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import {
 	ACCESS_TOKEN_COOKIE_NAME,
+	isProtectedRoute,
 	REFRESH_TOKEN_COOKIE_NAME,
 } from "@/shared/config"
 
@@ -11,6 +12,10 @@ type AccessTokenPayload = {
 }
 
 export async function proxy(request: NextRequest) {
+	if (!isProtectedRoute(request.nextUrl.pathname)) {
+		return NextResponse.next()
+	}
+
 	const accessToken = request.cookies.get(ACCESS_TOKEN_COOKIE_NAME)?.value
 
 	if (accessToken && !isAccessTokenExpired(accessToken)) {
@@ -85,7 +90,9 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-	matcher: ["/profile/:path*"],
+	matcher: [
+		"/((?!api|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt).*)",
+	],
 }
 
 function isAccessTokenExpired(token: string): boolean {
