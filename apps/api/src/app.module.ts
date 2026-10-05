@@ -2,8 +2,10 @@ import { Module } from '@nestjs/common';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { ConfigModule } from '@nestjs/config';
-import { validateEnv } from './config/env.validation.js';
 import { UsersModule } from './users/users.module.js';
+import { PropertiesModule } from './properties/properties.module.js';
+import { AmenitiesModule } from './amenities/amenities.module.js';
+import { validateEnv } from './config/env.validation.js';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard.js';
 import { CsrfGuard } from './common/guards/csrf.guard.js';
 import { APP_GUARD } from '@nestjs/core';
@@ -18,6 +20,8 @@ import { APP_GUARD } from '@nestjs/core';
     PrismaModule,
     AuthModule,
     UsersModule,
+    PropertiesModule,
+    AmenitiesModule,
   ],
   providers: [
     {

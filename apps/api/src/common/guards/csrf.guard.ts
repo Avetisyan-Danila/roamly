@@ -4,7 +4,6 @@ import {
   ForbiddenException,
   Injectable,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 const CSRF_HEADER_NAME = 'x-csrf-protection';
@@ -12,8 +11,6 @@ const CSRF_HEADER_VALUE = 'enabled';
 
 @Injectable()
 export class CsrfGuard implements CanActivate {
-  constructor(private readonly configService: ConfigService) {}
-
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest();
 
