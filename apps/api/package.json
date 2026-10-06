@@ -19,7 +19,12 @@
     "test:watch": "vitest",
     "test:cov": "vitest run --coverage",
     "test:debug": "vitest --inspect-brk --no-file-parallelism",
-    "test:e2e": "vitest run --config ./vitest.config.e2e.ts"
+    "test:e2e": "vitest run --config ./vitest.config.e2e.ts",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:generate": "prisma generate",
+    "test:db:migrate": "NODE_ENV=test prisma migrate deploy",
+    "test:db:seed": "NODE_ENV=test prisma db seed",
+    "test:db:studio": "NODE_ENV=test prisma studio"
   },
   "dependencies": {
     "@nestjs/common": "^12.0.1",
