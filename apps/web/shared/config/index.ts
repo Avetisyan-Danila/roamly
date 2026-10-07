@@ -1,2 +1,1 @@
 export { ACCESS_TOKEN_COOKIE_NAME, REFRESH_TOKEN_COOKIE_NAME } from "./cookies"
-export { isProtectedRoute } from "./routes"
