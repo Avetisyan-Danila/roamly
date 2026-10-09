@@ -11,13 +11,14 @@ import { UnauthorizedException } from '@nestjs/common';
 import type { LoginDto } from './dto/login.dto.js';
 import type { LoginResult } from './types/login-result.type.js';
 import type { RefreshResult } from './types/refresh-result.type.js';
+import type { Env } from '../config/env.validation.js';
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly tokenService: TokenService,
-    private readonly configService: ConfigService,
+    private readonly configService: ConfigService<Env, true>,
   ) {}
 
   async register(registerDto: RegisterDto) {
@@ -73,8 +74,9 @@ export class AuthService {
     const refreshSecret = this.tokenService.createRefreshSecret();
     const refreshTokenHash = this.tokenService.hashRefreshSecret(refreshSecret);
 
-    const refreshTokenTtlDays = this.configService.getOrThrow<number>(
+    const refreshTokenTtlDays = this.configService.getOrThrow(
       'REFRESH_TOKEN_TTL_DAYS',
+      { infer: true },
     );
 
     const expiresAt = new Date(

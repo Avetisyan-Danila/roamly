@@ -9,7 +9,9 @@ import type { Env } from '../config/env.validation.js';
 export class PrismaService extends PrismaClient implements OnModuleInit {
   constructor(configService: ConfigService<Env, true>) {
     const adapter = new PrismaPg({
-      connectionString: configService.getOrThrow('DATABASE_URL'),
+      connectionString: configService.getOrThrow('DATABASE_URL', {
+        infer: true,
+      }),
     });
 
     super({ adapter });

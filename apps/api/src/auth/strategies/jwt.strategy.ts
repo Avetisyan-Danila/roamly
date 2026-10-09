@@ -6,17 +6,20 @@ import { ACCESS_TOKEN_COOKIE_NAME } from '../auth.constants.js';
 
 import type { Request } from 'express';
 import type { AccessTokenPayload } from '../types/access-token-payload.type.js';
+import type { Env } from '../../config/env.validation.js';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor(configService: ConfigService) {
+  constructor(configService: ConfigService<Env, true>) {
     super({
       jwtFromRequest: ExtractJwt.fromExtractors([
         (request: Request) =>
           request.cookies?.[ACCESS_TOKEN_COOKIE_NAME] ?? null,
       ]),
       ignoreExpiration: false,
-      secretOrKey: configService.getOrThrow<string>('JWT_SECRET'),
+      secretOrKey: configService.getOrThrow('JWT_SECRET', {
+        infer: true,
+      }),
     });
   }
 

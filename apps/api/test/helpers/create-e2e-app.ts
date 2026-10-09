@@ -5,6 +5,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AppModule } from '../../src/app.module.js';
 import { configureApp } from '../../src/app.setup.js';
 import { PrismaService } from '../../src/prisma/prisma.service.js';
+import type { Env } from '../../src/config/env.validation.js';
 
 export interface E2eContext {
   app: INestApplication;
@@ -23,9 +24,9 @@ export async function createE2eApp(): Promise<E2eContext> {
   await app.init();
 
   const prisma = app.get(PrismaService);
-  const configService = app.get(ConfigService);
+  const configService = app.get(ConfigService<Env, true>);
 
-  const databaseUrl = configService.getOrThrow<string>('DATABASE_URL');
+  const databaseUrl = configService.getOrThrow('DATABASE_URL', { infer: true });
 
   const parsedDatabaseUrl = new URL(databaseUrl);
 

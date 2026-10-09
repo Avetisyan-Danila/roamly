@@ -22,12 +22,13 @@ import {
 
 import type { Request, Response } from 'express';
 import type { LoginResponse } from './types/login-response.type.js';
+import type { Env } from '../config/env.validation.js';
 
 @Controller('auth')
 export class AuthController {
   constructor(
     private readonly authService: AuthService,
-    private readonly configService: ConfigService,
+    private readonly configService: ConfigService<Env, true>,
   ) {}
 
   @Public()
@@ -45,11 +46,15 @@ export class AuthController {
   ): Promise<LoginResponse> {
     const result = await this.authService.login(loginDto);
 
-    const accessTokenTtlSeconds = this.configService.getOrThrow<number>(
+    const accessTokenTtlSeconds = this.configService.getOrThrow(
       'JWT_ACCESS_TTL_SECONDS',
+      { infer: true },
     );
-    const refreshTokenTtlDays = this.configService.getOrThrow<number>(
+    const refreshTokenTtlDays = this.configService.getOrThrow(
       'REFRESH_TOKEN_TTL_DAYS',
+      {
+        infer: true,
+      },
     );
 
     response.cookie(ACCESS_TOKEN_COOKIE_NAME, result.accessToken, {
@@ -89,11 +94,13 @@ export class AuthController {
 
     const result = await this.authService.refresh(refreshToken);
 
-    const accessTokenTtlSeconds = this.configService.getOrThrow<number>(
+    const accessTokenTtlSeconds = this.configService.getOrThrow(
       'JWT_ACCESS_TTL_SECONDS',
+      { infer: true },
     );
-    const refreshTokenTtlDays = this.configService.getOrThrow<number>(
+    const refreshTokenTtlDays = this.configService.getOrThrow(
       'REFRESH_TOKEN_TTL_DAYS',
+      { infer: true },
     );
 
     response.cookie(ACCESS_TOKEN_COOKIE_NAME, result.accessToken, {

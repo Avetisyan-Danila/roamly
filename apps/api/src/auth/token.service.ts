@@ -4,20 +4,19 @@ import { JwtService } from '@nestjs/jwt';
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 
 import type { AccessTokenPayload } from './types/access-token-payload.type.js';
-
-type JwtDuration = `${number}${'s' | 'm' | 'h' | 'd'}`;
+import type { Env } from '../config/env.validation.js';
 
 @Injectable()
 export class TokenService {
   constructor(
     private readonly jwtService: JwtService,
-    private readonly configService: ConfigService,
+    private readonly configService: ConfigService<Env, true>,
   ) {}
 
   async createAccessToken(userId: string): Promise<string> {
-    const expiresIn = this.configService.getOrThrow<JwtDuration>(
-      'JWT_ACCESS_TTL_SECONDS',
-    );
+    const expiresIn = this.configService.getOrThrow('JWT_ACCESS_TTL_SECONDS', {
+      infer: true,
+    });
 
     const payload: AccessTokenPayload = {
       sub: userId,

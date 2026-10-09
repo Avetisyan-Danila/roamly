@@ -7,6 +7,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { TokenService } from './token.service.js';
 import { PassportModule } from '@nestjs/passport';
 import { JwtStrategy } from './strategies/jwt.strategy.js';
+import type { Env } from '../config/env.validation.js';
 
 @Module({
   imports: [
@@ -15,8 +16,8 @@ import { JwtStrategy } from './strategies/jwt.strategy.js';
     JwtModule.registerAsync({
       inject: [ConfigService],
 
-      useFactory: (configService: ConfigService) => ({
-        secret: configService.getOrThrow<string>('JWT_SECRET'),
+      useFactory: (configService: ConfigService<Env, true>) => ({
+        secret: configService.getOrThrow('JWT_SECRET', { infer: true }),
       }),
     }),
   ],
