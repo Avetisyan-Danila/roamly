@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from './prisma/prisma.module.js';
+import { StorageModule } from './storage/storage.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { ConfigModule } from '@nestjs/config';
 import { UsersModule } from './users/users.module.js';
@@ -18,6 +19,7 @@ import { APP_GUARD } from '@nestjs/core';
       validate: validateEnv,
     }),
     PrismaModule,
+    StorageModule,
     AuthModule,
     UsersModule,
     PropertiesModule,
