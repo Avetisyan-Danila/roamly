@@ -6,6 +6,7 @@ export class PropertyResponseDto {
   ownerId: string;
   title: string;
   description: string;
+  status: 'PUBLISHED';
   country: string;
   city: string;
   address: string;

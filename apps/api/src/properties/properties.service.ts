@@ -1,15 +1,18 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 
 import { PrismaService } from '../prisma/prisma.service.js';
+import { PropertyStatus } from '../generated/prisma/enums.js';
 import { PropertyAuthorizationService } from './authorization/property-authorization.service.js';
-import { CreatePropertyDto } from './dto/create-property.dto.js';
 import { PropertyMapper } from './mappers/property.mapper.js';
 import { PropertyResponseDto } from './dto/property-response.dto.js';
 import { UpdatePropertyDto } from './dto/update-property.dto.js';
+import { DraftPropertyResponseDto } from './dto/draft-property-response.dto.js';
+import { Prisma } from '../generated/prisma/client.js';
 
 @Injectable()
 export class PropertiesService {
@@ -48,41 +51,50 @@ export class PropertiesService {
     });
   }
 
-  async create(
-    ownerId: string,
-    dto: CreatePropertyDto,
-  ): Promise<PropertyResponseDto> {
-    const { amenityIds = [], ...propertyData } = dto;
-
-    await this.validateAmenityIds(amenityIds);
-
+  async createDraft(ownerId: string): Promise<DraftPropertyResponseDto> {
     const property = await this.prisma.property.create({
       data: {
-        ...propertyData,
-
         owner: {
           connect: {
             id: ownerId,
           },
         },
-
-        amenities: {
-          connect: amenityIds.map((id) => ({ id })),
-        },
       },
-
       include: {
         amenities: true,
       },
     });
 
-    return PropertyMapper.toResponse(property);
+    return PropertyMapper.toDraftResponse(property);
+  }
+
+  async findDraft(
+    id: string,
+    ownerId: string,
+  ): Promise<DraftPropertyResponseDto> {
+    const property = await this.prisma.property.findFirst({
+      where: {
+        id,
+        ownerId,
+        status: PropertyStatus.DRAFT,
+      },
+      include: {
+        amenities: true,
+      },
+    });
+
+    if (!property) {
+      throw new NotFoundException('Draft property not found');
+    }
+
+    return PropertyMapper.toDraftResponse(property);
   }
 
   async findOne(id: string): Promise<PropertyResponseDto> {
-    const property = await this.prisma.property.findUnique({
+    const property = await this.prisma.property.findFirst({
       where: {
         id,
+        status: PropertyStatus.PUBLISHED,
       },
       include: {
         amenities: true,
@@ -93,7 +105,71 @@ export class PropertiesService {
       throw new NotFoundException('Property not found');
     }
 
-    return PropertyMapper.toResponse(property);
+    return PropertyMapper.toPublishedResponse(property);
+  }
+
+  async updateDraft(
+    id: string,
+    ownerId: string,
+    dto: UpdatePropertyDto,
+  ): Promise<DraftPropertyResponseDto> {
+    if (Object.keys(dto).length === 0) {
+      throw new BadRequestException(
+        'At least one property field must be provided',
+      );
+    }
+
+    await this.propertyAuthorizationService.ensureOwner(
+      id,
+      ownerId,
+      PropertyStatus.DRAFT,
+    );
+
+    const { amenityIds, ...propertyData } = dto;
+
+    if (amenityIds === null) {
+      throw new BadRequestException('amenityIds must be an array');
+    }
+
+    if (amenityIds !== undefined) {
+      await this.validateAmenityIds(amenityIds);
+    }
+
+    try {
+      const property = await this.prisma.property.update({
+        where: {
+          id,
+          status: PropertyStatus.DRAFT,
+        },
+        data: {
+          ...propertyData,
+
+          ...(amenityIds !== undefined
+            ? {
+                amenities: {
+                  set: amenityIds.map((amenityId) => ({
+                    id: amenityId,
+                  })),
+                },
+              }
+            : {}),
+        },
+        include: {
+          amenities: true,
+        },
+      });
+
+      return PropertyMapper.toDraftResponse(property);
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new ConflictException('Property is no longer a draft');
+      }
+
+      throw error;
+    }
   }
 
   async update(
@@ -107,37 +183,60 @@ export class PropertiesService {
       );
     }
 
-    await this.propertyAuthorizationService.ensureOwner(id, ownerId);
+    await this.propertyAuthorizationService.ensureOwner(
+      id,
+      ownerId,
+      PropertyStatus.PUBLISHED,
+    );
 
     const { amenityIds, ...propertyData } = dto;
+
+    if (
+      amenityIds === null ||
+      Object.values(propertyData).some((value) => value === null)
+    ) {
+      throw new BadRequestException('Published property fields cannot be null');
+    }
 
     if (amenityIds !== undefined) {
       await this.validateAmenityIds(amenityIds);
     }
 
-    const updatedProperty = await this.prisma.property.update({
-      where: {
-        id,
-      },
-      data: {
-        ...propertyData,
+    try {
+      const property = await this.prisma.property.update({
+        where: {
+          id,
+          status: PropertyStatus.PUBLISHED,
+        },
+        data: {
+          ...propertyData,
 
-        ...(amenityIds !== undefined
-          ? {
-              amenities: {
-                set: amenityIds.map((amenityId) => ({
-                  id: amenityId,
-                })),
-              },
-            }
-          : {}),
-      },
-      include: {
-        amenities: true,
-      },
-    });
+          ...(amenityIds !== undefined
+            ? {
+                amenities: {
+                  set: amenityIds.map((amenityId) => ({
+                    id: amenityId,
+                  })),
+                },
+              }
+            : {}),
+        },
+        include: {
+          amenities: true,
+        },
+      });
 
-    return PropertyMapper.toResponse(updatedProperty);
+      return PropertyMapper.toPublishedResponse(property);
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new ConflictException('Property is no longer published');
+      }
+
+      throw error;
+    }
   }
 
   async remove(id: string, ownerId: string): Promise<void> {
