@@ -257,7 +257,7 @@ export class PropertiesService {
     propertyId: string,
     ownerId: string,
     dto: CreatePhotoUploadUrlDto,
-  ): Promise<{ uploadUrl: string; storageKey: string }> {
+  ): Promise<{ uploadId: string; uploadUrl: string }> {
     await this.propertyAuthorizationService.ensureOwner(
       propertyId,
       ownerId,
@@ -271,9 +271,19 @@ export class PropertiesService {
       dto.contentType,
     );
 
+    const upload = await this.prisma.propertyPhotoUpload.create({
+      data: {
+        propertyId,
+        storageKey,
+        contentType: dto.contentType,
+        sizeBytes: dto.sizeBytes,
+        expiresAt: new Date(Date.now() + 15 * 60 * 1000),
+      },
+    });
+
     return {
+      uploadId: upload.id,
       uploadUrl,
-      storageKey,
     };
   }
 }

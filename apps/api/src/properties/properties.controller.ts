@@ -36,7 +36,7 @@ export class PropertiesController {
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: CreatePhotoUploadUrlDto,
-  ): Promise<{ uploadUrl: string; storageKey: string }> {
+  ): Promise<{ uploadId: string; uploadUrl: string }> {
     return this.propertiesService.createPhotoUploadUrl(id, user.userId, dto);
   }
 

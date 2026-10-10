@@ -48,27 +48,28 @@ enum PropertyStatus {
 }
 
 model Property {
-  id             String          @id @default(uuid())
+  id             String                @id @default(uuid())
   ownerId        String
-  status         PropertyStatus  @default(DRAFT)
+  status         PropertyStatus        @default(DRAFT)
   title          String?
   description    String?
   country        String?
   city           String?
   address        String?
-  latitude       Decimal?        @db.Decimal(9, 6)
-  longitude      Decimal?        @db.Decimal(9, 6)
-  pricePerNight  Decimal?        @db.Decimal(10, 2)
+  latitude       Decimal?              @db.Decimal(9, 6)
+  longitude      Decimal?              @db.Decimal(9, 6)
+  pricePerNight  Decimal?              @db.Decimal(10, 2)
   currency       Currency?
   maxGuests      Int?
   bedrooms       Int?
   beds           Int?
-  bathrooms      Decimal?        @db.Decimal(3, 1)
-  owner          User            @relation(fields: [ownerId], references: [id])
+  bathrooms      Decimal?              @db.Decimal(3, 1)
+  owner          User                  @relation(fields: [ownerId], references: [id])
   amenities      Amenity[]
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
   propertyPhotos PropertyPhoto[]
+  photoUploads   PropertyPhotoUpload[]
 
   @@index([ownerId, status])
 }
@@ -88,8 +89,20 @@ model PropertyPhoto {
   sizeBytes   Int
   position    Int      @default(0)
   createdAt   DateTime @default(now())
-
-  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  property    Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
 
   @@index([propertyId, position])
+}
+
+model PropertyPhotoUpload {
+  id          String   @id @default(uuid())
+  propertyId  String
+  storageKey  String   @unique
+  contentType String
+  sizeBytes   Int
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  property    Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([propertyId, expiresAt])
 }
