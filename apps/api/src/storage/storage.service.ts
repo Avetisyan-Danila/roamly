@@ -1,8 +1,13 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { HeadBucketCommand, S3Client } from '@aws-sdk/client-s3';
+import {
+  HeadBucketCommand,
+  PutObjectCommand,
+  S3Client,
+} from '@aws-sdk/client-s3';
 
 import type { Env } from '../config/env.validation.js';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 @Injectable()
 export class StorageService {
@@ -22,5 +27,25 @@ export class StorageService {
         Bucket: bucket,
       }),
     );
+  }
+
+  async createUploadUrl(
+    storageKey: string,
+    contentType: string,
+  ): Promise<string> {
+    const bucket = this.config.getOrThrow('S3_BUCKET', {
+      infer: true,
+    });
+
+    const command = new PutObjectCommand({
+      Bucket: bucket,
+      Key: storageKey,
+      ContentType: contentType,
+    });
+
+    return getSignedUrl(this.s3Client, command, {
+      expiresIn: 300,
+      signableHeaders: new Set(['content-type']),
+    });
   }
 }

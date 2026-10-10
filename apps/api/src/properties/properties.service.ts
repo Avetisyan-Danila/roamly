@@ -6,19 +6,23 @@ import {
 } from '@nestjs/common';
 
 import { PrismaService } from '../prisma/prisma.service.js';
-import { PropertyStatus } from '../generated/prisma/enums.js';
 import { PropertyAuthorizationService } from './authorization/property-authorization.service.js';
+import { StorageService } from '../storage/storage.service.js';
+import { PropertyStatus } from '../generated/prisma/enums.js';
 import { PropertyMapper } from './mappers/property.mapper.js';
 import { PropertyResponseDto } from './dto/property-response.dto.js';
 import { UpdatePropertyDto } from './dto/update-property.dto.js';
 import { DraftPropertyResponseDto } from './dto/draft-property-response.dto.js';
 import { Prisma } from '../generated/prisma/client.js';
+import { CreatePhotoUploadUrlDto } from './dto/create-photo-upload-url.dto.js';
+import { randomUUID } from 'node:crypto';
 
 @Injectable()
 export class PropertiesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly propertyAuthorizationService: PropertyAuthorizationService,
+    private readonly storageService: StorageService,
   ) {}
 
   private async validateAmenityIds(amenityIds: string[]): Promise<void> {
@@ -247,5 +251,29 @@ export class PropertiesService {
         id,
       },
     });
+  }
+
+  async createPhotoUploadUrl(
+    propertyId: string,
+    ownerId: string,
+    dto: CreatePhotoUploadUrlDto,
+  ): Promise<{ uploadUrl: string; storageKey: string }> {
+    await this.propertyAuthorizationService.ensureOwner(
+      propertyId,
+      ownerId,
+      PropertyStatus.DRAFT,
+    );
+
+    const storageKey = `properties/${propertyId}/pending/${randomUUID()}`;
+
+    const uploadUrl = await this.storageService.createUploadUrl(
+      storageKey,
+      dto.contentType,
+    );
+
+    return {
+      uploadUrl,
+      storageKey,
+    };
   }
 }

@@ -25,6 +25,7 @@ import { StorageService } from './storage.service.js';
               infer: true,
             }),
           },
+          requestChecksumCalculation: 'WHEN_REQUIRED',
         }),
     },
     StorageService,

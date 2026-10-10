@@ -18,6 +18,7 @@ import type { AuthenticatedUser } from '../auth/types/authenticated-user.type.js
 import { Public } from '../auth/decorators/public.decorator.js';
 import { UpdatePropertyDto } from './dto/update-property.dto.js';
 import { DraftPropertyResponseDto } from './dto/draft-property-response.dto.js';
+import { CreatePhotoUploadUrlDto } from './dto/create-photo-upload-url.dto.js';
 
 @Controller('properties')
 export class PropertiesController {
@@ -28,6 +29,15 @@ export class PropertiesController {
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<DraftPropertyResponseDto> {
     return this.propertiesService.createDraft(user.userId);
+  }
+
+  @Post('drafts/:id/photos/upload-url')
+  createPhotoUploadUrl(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: CreatePhotoUploadUrlDto,
+  ): Promise<{ uploadUrl: string; storageKey: string }> {
+    return this.propertiesService.createPhotoUploadUrl(id, user.userId, dto);
   }
 
   @Get('drafts/:id')
