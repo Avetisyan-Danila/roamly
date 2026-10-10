@@ -40,6 +40,15 @@ export class PropertiesController {
     return this.propertiesService.createPhotoUploadUrl(id, user.userId, dto);
   }
 
+  @Post('drafts/:id/photos/:uploadId/confirm')
+  confirmPhotoUpload(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Param('uploadId', new ParseUUIDPipe({ version: '4' })) uploadId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<{ id: string }> {
+    return this.propertiesService.confirmPhotoUpload(id, user.userId, uploadId);
+  }
+
   @Get('drafts/:id')
   findDraft(
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
