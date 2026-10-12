@@ -13,7 +13,6 @@ describe('Properties (e2e)', () => {
   let prisma: PrismaService;
 
   let wifiId: string;
-  let kitchenId: string;
 
   beforeAll(async () => {
     const context = await createE2eApp();
@@ -28,47 +27,26 @@ describe('Properties (e2e)', () => {
     const amenities = await createTestAmenities(prisma);
 
     wifiId = amenities.wifi.id;
-    kitchenId = amenities.kitchen.id;
   });
 
   afterAll(async () => {
     await app.close();
   });
 
-  function buildPropertyPayload(amenityIds: string[] = [wifiId, kitchenId]) {
-    return {
-      title: 'Cozy apartment in Madrid',
-      description: 'Bright apartment close to Retiro Park',
-      country: 'Spain',
-      city: 'Madrid',
-      address: 'Calle de Alcalá 100',
-      latitude: 40.4203,
-      longitude: -3.6817,
-      pricePerNight: '120.50',
-      currency: 'EUR',
-      maxGuests: 4,
-      bedrooms: 2,
-      beds: 2,
-      bathrooms: 1.5,
-      amenityIds,
-    };
-  }
-
-  async function createProperty(agent: TestAgent) {
+  async function createDraft(agent: TestAgent) {
     return agent
-      .post('/properties')
+      .post('/properties/drafts')
       .set(CSRF_HEADER, CSRF_HEADER_VALUE)
-      .send(buildPropertyPayload())
       .expect(201);
   }
 
-  describe('POST /properties', () => {
-    it('creates a property for the authenticated owner', async () => {
+  describe('POST /properties/drafts', () => {
+    it('creates an empty draft for the authenticated owner', async () => {
       const ownerAgent = await createAuthenticatedAgent(app, {
         email: 'owner@example.com',
       });
 
-      const response = await createProperty(ownerAgent);
+      const response = await createDraft(ownerAgent);
 
       const owner = await prisma.user.findUniqueOrThrow({
         where: {
@@ -78,36 +56,20 @@ describe('Properties (e2e)', () => {
 
       expect(response.body).toMatchObject({
         ownerId: owner.id,
-        title: 'Cozy apartment in Madrid',
-        city: 'Madrid',
-        pricePerNight: '120.50',
-        currency: 'EUR',
-        maxGuests: 4,
+        status: 'DRAFT',
+        title: null,
+        description: null,
+        pricePerNight: null,
+        amenities: [],
       });
 
       expect(response.body.id).toEqual(expect.any(String));
-
-      expect(response.body.amenities).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            id: wifiId,
-            code: 'WIFI',
-            name: 'Wi-Fi',
-          }),
-          expect.objectContaining({
-            id: kitchenId,
-            code: 'KITCHEN',
-            name: 'Kitchen',
-          }),
-        ]),
-      );
     });
 
     it('returns 401 when the user is not authenticated', async () => {
       await request(app.getHttpServer())
-        .post('/properties')
+        .post('/properties/drafts')
         .set(CSRF_HEADER, CSRF_HEADER_VALUE)
-        .send(buildPropertyPayload())
         .expect(401);
     });
 
@@ -116,62 +78,59 @@ describe('Properties (e2e)', () => {
         email: 'owner@example.com',
       });
 
-      await ownerAgent
-        .post('/properties')
-        .send(buildPropertyPayload())
-        .expect(403);
+      await ownerAgent.post('/properties/drafts').expect(403);
     });
+  });
 
-    it('returns 400 when an amenity does not exist', async () => {
+  describe('GET /properties/drafts/:id', () => {
+    it('allows the owner to retrieve their draft', async () => {
       const ownerAgent = await createAuthenticatedAgent(app, {
         email: 'owner@example.com',
       });
 
-      const missingAmenityId = '00000000-0000-4000-8000-000000000001';
+      const created = await createDraft(ownerAgent);
+      const propertyId = created.body.id as string;
 
       const response = await ownerAgent
-        .post('/properties')
-        .set(CSRF_HEADER, CSRF_HEADER_VALUE)
-        .send(buildPropertyPayload([wifiId, missingAmenityId]))
-        .expect(400);
+        .get(`/properties/drafts/${propertyId}`)
+        .expect(200);
 
       expect(response.body).toMatchObject({
-        message: 'One or more amenities do not exist',
-        missingAmenityIds: [missingAmenityId],
+        id: propertyId,
+        status: 'DRAFT',
+        title: null,
+        amenities: [],
       });
     });
 
-    it('does not allow the client to provide ownerId', async () => {
+    it('returns 404 when another user requests the draft', async () => {
       const ownerAgent = await createAuthenticatedAgent(app, {
         email: 'owner@example.com',
       });
 
-      await ownerAgent
-        .post('/properties')
-        .set(CSRF_HEADER, CSRF_HEADER_VALUE)
-        .send({
-          ...buildPropertyPayload(),
-          ownerId: '00000000-0000-4000-8000-000000000001',
-        })
-        .expect(400);
+      const anotherAgent = await createAuthenticatedAgent(app, {
+        email: 'another@example.com',
+      });
+
+      const created = await createDraft(ownerAgent);
+      const propertyId = created.body.id as string;
+
+      await anotherAgent.get(`/properties/drafts/${propertyId}`).expect(404);
     });
   });
 
   describe('GET /properties/:id', () => {
-    it('returns a property publicly without authentication', async () => {
+    it('does not expose draft properties publicly', async () => {
       const ownerAgent = await createAuthenticatedAgent(app, {
         email: 'owner@example.com',
       });
 
-      const createResponse = await createProperty(ownerAgent);
+      const created = await createDraft(ownerAgent);
+      const propertyId = created.body.id as string;
 
-      const propertyId = createResponse.body.id as string;
-
-      const response = await request(app.getHttpServer())
+      await request(app.getHttpServer())
         .get(`/properties/${propertyId}`)
-        .expect(200);
-
-      expect(response.body).toEqual(createResponse.body);
+        .expect(404);
     });
 
     it('returns 404 when the property does not exist', async () => {
@@ -183,30 +142,30 @@ describe('Properties (e2e)', () => {
     });
   });
 
-  describe('PATCH /properties/:id', () => {
-    it('allows the owner to update the property', async () => {
+  describe('PATCH /properties/drafts/:id', () => {
+    it('allows the owner to update their draft', async () => {
       const ownerAgent = await createAuthenticatedAgent(app, {
         email: 'owner@example.com',
       });
 
-      const createResponse = await createProperty(ownerAgent);
-
-      const propertyId = createResponse.body.id as string;
+      const created = await createDraft(ownerAgent);
+      const propertyId = created.body.id as string;
 
       const response = await ownerAgent
-        .patch(`/properties/${propertyId}`)
+        .patch(`/properties/drafts/${propertyId}`)
         .set(CSRF_HEADER, CSRF_HEADER_VALUE)
         .send({
           title: 'Updated apartment in Madrid',
-          pricePerNight: '150.00',
+          maxGuests: 4,
           amenityIds: [wifiId],
         })
         .expect(200);
 
       expect(response.body).toMatchObject({
         id: propertyId,
+        status: 'DRAFT',
         title: 'Updated apartment in Madrid',
-        pricePerNight: '150.00',
+        maxGuests: 4,
       });
 
       expect(response.body.amenities).toEqual([
@@ -217,70 +176,82 @@ describe('Properties (e2e)', () => {
       ]);
     });
 
-    it('returns 403 when another user tries to update the property', async () => {
+    it('returns 403 when another user tries to update the draft', async () => {
       const ownerAgent = await createAuthenticatedAgent(app, {
         email: 'owner@example.com',
       });
 
-      const anotherUserAgent = await createAuthenticatedAgent(app, {
+      const anotherAgent = await createAuthenticatedAgent(app, {
         email: 'another@example.com',
       });
 
-      const createResponse = await createProperty(ownerAgent);
+      const created = await createDraft(ownerAgent);
+      const propertyId = created.body.id as string;
 
-      const propertyId = createResponse.body.id as string;
-
-      await anotherUserAgent
-        .patch(`/properties/${propertyId}`)
+      await anotherAgent
+        .patch(`/properties/drafts/${propertyId}`)
         .set(CSRF_HEADER, CSRF_HEADER_VALUE)
         .send({
           title: 'Stolen apartment',
         })
         .expect(403);
     });
-  });
 
-  describe('DELETE /properties/:id', () => {
-    it('returns 403 when another user tries to delete the property', async () => {
+    it('returns 400 when the provided data is invalid', async () => {
       const ownerAgent = await createAuthenticatedAgent(app, {
         email: 'owner@example.com',
       });
 
-      const anotherUserAgent = await createAuthenticatedAgent(app, {
+      const created = await createDraft(ownerAgent);
+      const propertyId = created.body.id as string;
+
+      await ownerAgent
+        .patch(`/properties/drafts/${propertyId}`)
+        .set(CSRF_HEADER, CSRF_HEADER_VALUE)
+        .send({
+          maxGuests: -1,
+        })
+        .expect(400);
+    });
+  });
+
+  describe('DELETE /properties/:id', () => {
+    it('returns 403 when another user tries to delete the draft', async () => {
+      const ownerAgent = await createAuthenticatedAgent(app, {
+        email: 'owner@example.com',
+      });
+
+      const anotherAgent = await createAuthenticatedAgent(app, {
         email: 'another@example.com',
       });
 
-      const createResponse = await createProperty(ownerAgent);
+      const created = await createDraft(ownerAgent);
+      const propertyId = created.body.id as string;
 
-      const propertyId = createResponse.body.id as string;
-
-      await anotherUserAgent
+      await anotherAgent
         .delete(`/properties/${propertyId}`)
         .set(CSRF_HEADER, CSRF_HEADER_VALUE)
         .expect(403);
 
-      await request(app.getHttpServer())
-        .get(`/properties/${propertyId}`)
-        .expect(200);
+      // Убеждаемся, что чужой пользователь не удалил объявление.
+      await ownerAgent.get(`/properties/drafts/${propertyId}`).expect(200);
     });
 
-    it('allows the owner to delete the property', async () => {
+    it('allows the owner to delete the draft', async () => {
       const ownerAgent = await createAuthenticatedAgent(app, {
         email: 'owner@example.com',
       });
 
-      const createResponse = await createProperty(ownerAgent);
-
-      const propertyId = createResponse.body.id as string;
+      const created = await createDraft(ownerAgent);
+      const propertyId = created.body.id as string;
 
       await ownerAgent
         .delete(`/properties/${propertyId}`)
         .set(CSRF_HEADER, CSRF_HEADER_VALUE)
         .expect(204);
 
-      await request(app.getHttpServer())
-        .get(`/properties/${propertyId}`)
-        .expect(404);
+      // После удаления черновик больше не существует.
+      await ownerAgent.get(`/properties/drafts/${propertyId}`).expect(404);
     });
   });
 });

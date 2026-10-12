@@ -41,6 +41,18 @@ export async function createE2eApp(): Promise<E2eContext> {
     );
   }
 
+  const bucket = configService.getOrThrow('S3_BUCKET', {
+    infer: true,
+  });
+
+  if (bucket !== 'roamly-test') {
+    await app.close();
+
+    throw new Error(
+      `Refusing to run e2e tests against unsafe S3 bucket: ${bucket}`,
+    );
+  }
+
   return {
     app,
     prisma,
