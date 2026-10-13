@@ -269,6 +269,14 @@ export class PropertiesService {
       PropertyStatus.DRAFT,
     );
 
+    const photoCount = await this.prisma.propertyPhoto.count({
+      where: { propertyId },
+    });
+
+    if (photoCount >= 10) {
+      throw new ConflictException('Maximum 10 photos allowed');
+    }
+
     const storageKey = `properties/${propertyId}/pending/${randomUUID()}`;
 
     const uploadUrl = await this.storageService.createUploadUrl(

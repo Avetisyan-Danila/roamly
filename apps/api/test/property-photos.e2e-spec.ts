@@ -313,69 +313,29 @@ describe('Property photos (e2e)', () => {
       })),
     });
 
-    // Создаём настоящее JPEG-изображение
-    const jpeg = await sharp({
-      create: {
-        width: 100,
-        height: 100,
-        channels: 3,
-        background: '#abcdef',
-      },
-    })
-      .jpeg()
-      .toBuffer();
-
-    // Запрашиваем ссылку для 11-й фотографии
-    const uploadResponse = await agent
+    // Backend должен отклонить запрос ещё до выдачи ссылки
+    await agent
       .post(`/properties/drafts/${propertyId}/photos/upload-url`)
       .set(CSRF_HEADER, CSRF_HEADER_VALUE)
       .send({
         contentType: 'image/jpeg',
-        sizeBytes: jpeg.length,
+        sizeBytes: 1024,
       })
-      .expect(201);
-
-    const { uploadId, uploadUrl } = uploadResponse.body as {
-      uploadId: string;
-      uploadUrl: string;
-    };
-
-    const upload = await prisma.propertyPhotoUpload.findUniqueOrThrow({
-      where: { id: uploadId },
-    });
-
-    storageKeysToCleanUp.add(upload.storageKey);
-
-    // Загружаем 11-ю фотографию в SeaweedFS
-    const putResponse = await fetch(uploadUrl, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'image/jpeg',
-      },
-      body: new Uint8Array(jpeg),
-    });
-
-    expect(putResponse.status).toBe(200);
-
-    // Backend должен отклонить подтверждение
-    await agent
-      .post(`/properties/drafts/${propertyId}/photos/${uploadId}/confirm`)
-      .set(CSRF_HEADER, CSRF_HEADER_VALUE)
       .expect(409);
 
-    // У объявления по-прежнему ровно 10 фотографий
+    // Количество подтверждённых фотографий не изменилось
     const photoCount = await prisma.propertyPhoto.count({
       where: { propertyId },
     });
 
     expect(photoCount).toBe(10);
 
-    // Неудачное подтверждение не удаляет pending-запись
-    const pending = await prisma.propertyPhotoUpload.findUnique({
-      where: { id: uploadId },
+    // Новая pending-загрузка не должна создаваться
+    const pendingCount = await prisma.propertyPhotoUpload.count({
+      where: { propertyId },
     });
 
-    expect(pending).not.toBeNull();
+    expect(pendingCount).toBe(0);
   });
 
   it('prevents exceeding photo limit during concurrent confirmations', async () => {
