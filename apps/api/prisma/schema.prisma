@@ -105,4 +105,5 @@ model PropertyPhotoUpload {
   property    Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
 
   @@index([propertyId, expiresAt])
+  @@index([expiresAt])
 }
