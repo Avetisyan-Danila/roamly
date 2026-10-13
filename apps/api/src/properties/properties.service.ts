@@ -22,13 +22,13 @@ import { processPropertyPhoto } from './photos/process-property-photo.js';
 
 @Injectable()
 export class PropertiesService {
+  private readonly logger = new Logger(PropertiesService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly propertyAuthorizationService: PropertyAuthorizationService,
     private readonly storageService: StorageService,
   ) {}
-
-  private readonly logger = new Logger(PropertiesService.name);
 
   private async validateAmenityIds(amenityIds: string[]): Promise<void> {
     if (amenityIds.length === 0) {

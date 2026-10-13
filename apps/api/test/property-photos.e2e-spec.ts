@@ -1,5 +1,6 @@
 import type { INestApplication } from '@nestjs/common';
 import sharp from 'sharp';
+import { vi } from 'vitest';
 
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { StorageService } from '../src/storage/storage.service.js';
@@ -7,11 +8,13 @@ import { createE2eApp } from './helpers/create-e2e-app.js';
 import { resetDatabase } from './helpers/reset-database.js';
 import { createAuthenticatedAgent } from './helpers/auth.js';
 import { CSRF_HEADER, CSRF_HEADER_VALUE } from './helpers/http.js';
+import { PropertyPhotoCleanupService } from '../src/properties/photos/property-photo-cleanup.service.js';
 
 describe('Property photos (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
   let storage: StorageService;
+  let cleanupService: PropertyPhotoCleanupService;
 
   const storageKeysToCleanUp = new Set<string>();
 
@@ -21,6 +24,7 @@ describe('Property photos (e2e)', () => {
     app = context.app;
     prisma = context.prisma;
     storage = app.get(StorageService);
+    cleanupService = app.get(PropertyPhotoCleanupService);
   });
 
   beforeEach(async () => {
@@ -444,5 +448,175 @@ describe('Property photos (e2e)', () => {
     });
 
     storageKeysToCleanUp.add(savedPhoto.storageKey);
+  });
+
+  it('removes expired photo uploads from storage and database', async () => {
+    const agent = await createAuthenticatedAgent(app, {
+      email: 'owner@example.com',
+    });
+
+    const draftResponse = await agent
+      .post('/properties/drafts')
+      .set(CSRF_HEADER, CSRF_HEADER_VALUE)
+      .expect(201);
+
+    const propertyId = draftResponse.body.id as string;
+
+    const jpeg = await sharp({
+      create: {
+        width: 100,
+        height: 100,
+        channels: 3,
+        background: '#abcdef',
+      },
+    })
+      .jpeg()
+      .toBuffer();
+
+    // Создаём pending-загрузку
+    const uploadResponse = await agent
+      .post(`/properties/drafts/${propertyId}/photos/upload-url`)
+      .set(CSRF_HEADER, CSRF_HEADER_VALUE)
+      .send({
+        contentType: 'image/jpeg',
+        sizeBytes: jpeg.length,
+      })
+      .expect(201);
+
+    const { uploadId, uploadUrl } = uploadResponse.body as {
+      uploadId: string;
+      uploadUrl: string;
+    };
+
+    const pending = await prisma.propertyPhotoUpload.findUniqueOrThrow({
+      where: { id: uploadId },
+    });
+
+    storageKeysToCleanUp.add(pending.storageKey);
+
+    // Физически загружаем файл в SeaweedFS
+    const putResponse = await fetch(uploadUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'image/jpeg' },
+      body: new Uint8Array(jpeg),
+    });
+
+    expect(putResponse.status).toBe(200);
+
+    // Убеждаемся, что файл действительно существует
+    const storedPhoto = await storage.readPhotoForValidation(
+      pending.storageKey,
+    );
+
+    expect(storedPhoto.buffer.equals(jpeg)).toBe(true);
+
+    // Имитируем загрузку, просроченную более 10 минут назад
+    await prisma.propertyPhotoUpload.update({
+      where: { id: uploadId },
+      data: {
+        expiresAt: new Date(Date.now() - 30 * 60 * 1000),
+      },
+    });
+
+    // Запускаем очистку вручную
+    const result = await cleanupService.cleanupExpiredUploads();
+
+    expect(result).toEqual({
+      deleted: 1,
+      failed: 0,
+    });
+
+    // Проверяем, что запись исчезла из PostgreSQL
+    const remainingUpload = await prisma.propertyPhotoUpload.findUnique({
+      where: { id: uploadId },
+    });
+
+    expect(remainingUpload).toBeNull();
+
+    // Проверяем, что SeaweedFS тоже удалил файл
+    await expect(
+      storage.readPhotoForValidation(pending.storageKey),
+    ).rejects.toMatchObject({
+      $metadata: {
+        httpStatusCode: 404,
+      },
+    });
+  });
+
+  it('keeps expired uploads when storage deletion fails', async () => {
+    const agent = await createAuthenticatedAgent(app, {
+      email: 'owner@example.com',
+    });
+
+    const draftResponse = await agent
+      .post('/properties/drafts')
+      .set(CSRF_HEADER, CSRF_HEADER_VALUE)
+      .expect(201);
+
+    const propertyId = draftResponse.body.id as string;
+
+    const uploadResponse = await agent
+      .post(`/properties/drafts/${propertyId}/photos/upload-url`)
+      .set(CSRF_HEADER, CSRF_HEADER_VALUE)
+      .send({
+        contentType: 'image/jpeg',
+        sizeBytes: 1024,
+      })
+      .expect(201);
+
+    const uploadId = uploadResponse.body.uploadId as string;
+
+    const upload = await prisma.propertyPhotoUpload.findUniqueOrThrow({
+      where: { id: uploadId },
+    });
+
+    // Делаем запись просроченной
+    await prisma.propertyPhotoUpload.update({
+      where: { id: uploadId },
+      data: {
+        expiresAt: new Date(Date.now() - 30 * 60 * 1000),
+      },
+    });
+
+    // Имитируем ошибку SeaweedFS при удалении объекта
+    const deleteSpy = vi
+      .spyOn(storage, 'deleteObject')
+      .mockRejectedValueOnce(new Error('S3 temporarily unavailable'));
+
+    try {
+      const result = await cleanupService.cleanupExpiredUploads();
+
+      expect(result).toEqual({
+        deleted: 0,
+        failed: 1,
+      });
+
+      expect(deleteSpy).toHaveBeenCalledWith(upload.storageKey);
+    } finally {
+      // Возвращаем настоящее поведение StorageService
+      deleteSpy.mockRestore();
+    }
+
+    // Запись должна остаться в PostgreSQL
+    const pending = await prisma.propertyPhotoUpload.findUnique({
+      where: { id: uploadId },
+    });
+
+    expect(pending).not.toBeNull();
+
+    // Повторяем очистку — теперь SeaweedFS доступен
+    const retryResult = await cleanupService.cleanupExpiredUploads();
+
+    expect(retryResult).toEqual({
+      deleted: 1,
+      failed: 0,
+    });
+
+    // После успешной попытки запись удалена
+    const remainingUpload = await prisma.propertyPhotoUpload.findUnique({
+      where: { id: uploadId },
+    });
+
+    expect(remainingUpload).toBeNull();
   });
 });
