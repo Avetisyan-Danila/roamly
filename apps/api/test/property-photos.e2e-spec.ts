@@ -9,6 +9,7 @@ import { resetDatabase } from './helpers/reset-database.js';
 import { createAuthenticatedAgent } from './helpers/auth.js';
 import { CSRF_HEADER, CSRF_HEADER_VALUE } from './helpers/http.js';
 import { PropertyPhotoCleanupService } from '../src/properties/photos/property-photo-cleanup.service.js';
+import { CronExpression, SchedulerRegistry } from '@nestjs/schedule';
 
 describe('Property photos (e2e)', () => {
   let app: INestApplication;
@@ -618,5 +619,15 @@ describe('Property photos (e2e)', () => {
     });
 
     expect(remainingUpload).toBeNull();
+  });
+
+  it('registers photo cleanup cron job', () => {
+    const schedulerRegistry = app.get(SchedulerRegistry);
+
+    const cronJob = schedulerRegistry.getCronJob('property-photo-cleanup');
+
+    expect(cronJob).toBeDefined();
+
+    expect(cronJob.cronTime.source).toBe(CronExpression.EVERY_10_MINUTES);
   });
 });

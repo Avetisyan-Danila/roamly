@@ -10,6 +10,7 @@ import { validateEnv } from './config/env.validation.js';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard.js';
 import { CsrfGuard } from './common/guards/csrf.guard.js';
 import { APP_GUARD } from '@nestjs/core';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { APP_GUARD } from '@nestjs/core';
       envFilePath: process.env.NODE_ENV === 'test' ? '.env.test' : '.env',
       validate: validateEnv,
     }),
+    ScheduleModule.forRoot(),
     PrismaModule,
     StorageModule,
     AuthModule,

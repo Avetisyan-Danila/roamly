@@ -6,6 +6,7 @@ import { PropertiesController } from './properties.controller.js';
 import { PropertiesService } from './properties.service.js';
 import { PropertyAuthorizationService } from './authorization/property-authorization.service.js';
 import { PropertyPhotoCleanupService } from './photos/property-photo-cleanup.service.js';
+import { PropertyPhotoCleanupJob } from './photos/property-photo-cleanup.job.js';
 
 @Module({
   imports: [PrismaModule, StorageModule],
@@ -14,6 +15,7 @@ import { PropertyPhotoCleanupService } from './photos/property-photo-cleanup.ser
     PropertiesService,
     PropertyAuthorizationService,
     PropertyPhotoCleanupService,
+    PropertyPhotoCleanupJob,
   ],
 })
 export class PropertiesModule {}
