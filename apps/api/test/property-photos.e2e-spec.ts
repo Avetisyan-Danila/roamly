@@ -630,4 +630,51 @@ describe('Property photos (e2e)', () => {
 
     expect(cronJob.cronTime.source).toBe(CronExpression.EVERY_10_MINUTES);
   });
+
+  it('keeps recently expired photo uploads during grace period', async () => {
+    const agent = await createAuthenticatedAgent(app, {
+      email: 'owner@example.com',
+    });
+
+    const draftResponse = await agent
+      .post('/properties/drafts')
+      .set(CSRF_HEADER, CSRF_HEADER_VALUE)
+      .expect(201);
+
+    const propertyId = draftResponse.body.id as string;
+
+    const uploadResponse = await agent
+      .post(`/properties/drafts/${propertyId}/photos/upload-url`)
+      .set(CSRF_HEADER, CSRF_HEADER_VALUE)
+      .send({
+        contentType: 'image/jpeg',
+        sizeBytes: 1024,
+      })
+      .expect(201);
+
+    const uploadId = uploadResponse.body.uploadId as string;
+
+    // Загрузка просрочена 5 минут назад
+    await prisma.propertyPhotoUpload.update({
+      where: { id: uploadId },
+      data: {
+        expiresAt: new Date(Date.now() - 5 * 60 * 1000),
+      },
+    });
+
+    // Запускаем очистку
+    const result = await cleanupService.cleanupExpiredUploads();
+
+    expect(result).toEqual({
+      deleted: 0,
+      failed: 0,
+    });
+
+    // Запись должна остаться в PostgreSQL
+    const pending = await prisma.propertyPhotoUpload.findUnique({
+      where: { id: uploadId },
+    });
+
+    expect(pending).not.toBeNull();
+  });
 });
