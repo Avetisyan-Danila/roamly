@@ -456,7 +456,7 @@ export class PropertiesService {
             throw new ConflictException('Maximum 10 photos allowed');
           }
 
-          return tx.propertyPhoto.create({
+          const photo = await tx.propertyPhoto.create({
             data: {
               propertyId,
               storageKey: permanentStorageKey,
@@ -465,20 +465,22 @@ export class PropertiesService {
               position: photoCount,
             },
           });
+
+          await tx.storageDeletionTask.create({
+            data: {
+              storageKey: upload.storageKey,
+              availableAt: new Date(
+                upload.expiresAt.getTime() + PHOTO_CLEANUP_GRACE_PERIOD_MS,
+              ),
+            },
+          });
+
+          return photo;
         },
         {
           isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
         },
       );
-
-      try {
-        await this.storageService.deleteObject(upload.storageKey);
-      } catch (error) {
-        this.logger.warn(
-          `Failed to delete temporary photo ${upload.storageKey}`,
-          error instanceof Error ? error.message : String(error),
-        );
-      }
 
       return { id: photo.id };
     } catch (error) {

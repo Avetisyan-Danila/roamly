@@ -12,6 +12,7 @@ import { PropertyPhotoCleanupService } from '../src/properties/photos/property-p
 import { CronExpression, SchedulerRegistry } from '@nestjs/schedule';
 import { StorageDeletionTaskService } from '../src/storage/storage-deletion-task.service.js';
 import { randomUUID } from 'node:crypto';
+import { PHOTO_CLEANUP_GRACE_PERIOD_MS } from '../src/properties/photos/photo-cleanup.constants.js';
 
 describe('Property photos (e2e)', () => {
   let app: INestApplication;
@@ -107,6 +108,13 @@ describe('Property photos (e2e)', () => {
     expect(putResponse.status).toBe(200);
 
     // 6. Подтверждаем загрузку через NestJS
+
+    // Нам понадобятся ее storageKey и expiresAt для проверки созданного задания
+    const uploadBeforeConfirm =
+      await prisma.propertyPhotoUpload.findUniqueOrThrow({
+        where: { id: uploadId },
+      });
+
     const confirmResponse = await agent
       .post(`/properties/drafts/${propertyId}/photos/${uploadId}/confirm`)
       .set(CSRF_HEADER, CSRF_HEADER_VALUE)
@@ -152,6 +160,27 @@ describe('Property photos (e2e)', () => {
     });
 
     expect(photoCount).toBe(1);
+
+    // Для исходного файла создано задание на удаление
+    const deletionTask = await prisma.storageDeletionTask.findUnique({
+      where: {
+        storageKey: uploadBeforeConfirm.storageKey,
+      },
+    });
+
+    expect(deletionTask).not.toBeNull();
+
+    // Удаление запланировано после срока загрузки + защитный период
+    expect(deletionTask?.availableAt.getTime()).toBe(
+      uploadBeforeConfirm.expiresAt.getTime() + PHOTO_CLEANUP_GRACE_PERIOD_MS,
+    );
+
+    // Исходный файл пока ещё существует в SeaweedFS
+    const originalPhoto = await storage.readPhotoForValidation(
+      uploadBeforeConfirm.storageKey,
+    );
+
+    expect(originalPhoto.buffer.equals(jpeg)).toBe(true);
   });
 
   it('prevents uploading photos to another user draft', async () => {
