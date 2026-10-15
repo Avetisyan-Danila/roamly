@@ -1,4 +1,4 @@
-import type { INestApplication } from '@nestjs/common';
+import { Logger, type INestApplication } from '@nestjs/common';
 import sharp from 'sharp';
 import { vi } from 'vitest';
 
@@ -584,6 +584,10 @@ describe('Property photos (e2e)', () => {
       .spyOn(storage, 'deleteObject')
       .mockRejectedValueOnce(new Error('S3 temporarily unavailable'));
 
+    const errorLogSpy = vi
+      .spyOn(Logger.prototype, 'error')
+      .mockImplementation(() => undefined);
+
     try {
       const result = await cleanupService.cleanupExpiredUploads();
 
@@ -593,9 +597,15 @@ describe('Property photos (e2e)', () => {
       });
 
       expect(deleteSpy).toHaveBeenCalledWith(upload.storageKey);
+
+      // Проверяем, что сервис действительно залогировал ошибку
+      expect(errorLogSpy).toHaveBeenCalledWith(
+        `Failed to clean up photo upload ${uploadId}`,
+        expect.stringContaining('S3 temporarily unavailable'),
+      );
     } finally {
-      // Возвращаем настоящее поведение StorageService
       deleteSpy.mockRestore();
+      errorLogSpy.mockRestore();
     }
 
     // Запись должна остаться в PostgreSQL
