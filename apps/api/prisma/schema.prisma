@@ -107,3 +107,12 @@ model PropertyPhotoUpload {
   @@index([propertyId, expiresAt])
   @@index([expiresAt])
 }
+
+model StorageDeletionTask {
+  id          String   @id @default(uuid())
+  storageKey  String   @unique
+  availableAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  @@index([availableAt])
+}

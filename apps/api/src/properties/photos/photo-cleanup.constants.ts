@@ -1,0 +1,1 @@
+export const PHOTO_CLEANUP_GRACE_PERIOD_MS = 10 * 60 * 1000;

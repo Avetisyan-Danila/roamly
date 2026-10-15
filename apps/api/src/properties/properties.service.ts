@@ -19,6 +19,7 @@ import { Prisma } from '../generated/prisma/client.js';
 import { CreatePhotoUploadUrlDto } from './dto/create-photo-upload-url.dto.js';
 import { randomUUID } from 'node:crypto';
 import { processPropertyPhoto } from './photos/process-property-photo.js';
+import { PHOTO_CLEANUP_GRACE_PERIOD_MS } from './photos/photo-cleanup.constants.js';
 
 @Injectable()
 export class PropertiesService {
@@ -251,11 +252,76 @@ export class PropertiesService {
   async remove(id: string, ownerId: string): Promise<void> {
     await this.propertyAuthorizationService.ensureOwner(id, ownerId);
 
-    await this.prisma.property.delete({
-      where: {
-        id,
-      },
-    });
+    try {
+      await this.prisma.$transaction(
+        async (tx) => {
+          const property = await tx.property.findFirst({
+            where: {
+              id,
+              ownerId,
+            },
+            select: {
+              propertyPhotos: {
+                select: { storageKey: true },
+              },
+              photoUploads: {
+                select: {
+                  storageKey: true,
+                  expiresAt: true,
+                },
+              },
+            },
+          });
+
+          if (!property) {
+            throw new ConflictException('Property no longer exists');
+          }
+
+          const deletionTasks = [
+            ...property.propertyPhotos.map((photo) => ({
+              storageKey: photo.storageKey,
+              availableAt: new Date(),
+            })),
+
+            ...property.photoUploads.map((upload) => ({
+              storageKey: upload.storageKey,
+              availableAt: new Date(
+                upload.expiresAt.getTime() + PHOTO_CLEANUP_GRACE_PERIOD_MS,
+              ),
+            })),
+          ];
+
+          if (deletionTasks.length > 0) {
+            await tx.storageDeletionTask.createMany({
+              data: deletionTasks,
+            });
+          }
+
+          await tx.property.delete({
+            where: { id },
+          });
+        },
+        {
+          isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+        },
+      );
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2034'
+      ) {
+        throw new ConflictException('Concurrent property change, please retry');
+      }
+
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new ConflictException('Property no longer exists');
+      }
+
+      throw error;
+    }
   }
 
   async createPhotoUploadUrl(

@@ -2,8 +2,8 @@ import { Injectable, Logger } from '@nestjs/common';
 
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { StorageService } from '../../storage/storage.service.js';
+import { PHOTO_CLEANUP_GRACE_PERIOD_MS } from './photo-cleanup.constants.js';
 
-const CLEANUP_GRACE_PERIOD_MS = 10 * 60 * 1000;
 const CLEANUP_BATCH_SIZE = 100;
 
 @Injectable()
@@ -19,7 +19,7 @@ export class PropertyPhotoCleanupService {
     deleted: number;
     failed: number;
   }> {
-    const cutoff = new Date(Date.now() - CLEANUP_GRACE_PERIOD_MS);
+    const cutoff = new Date(Date.now() - PHOTO_CLEANUP_GRACE_PERIOD_MS);
 
     const uploads = await this.prisma.propertyPhotoUpload.findMany({
       where: {

@@ -687,4 +687,167 @@ describe('Property photos (e2e)', () => {
 
     expect(pending).not.toBeNull();
   });
+
+  it('creates storage deletion tasks when property is deleted', async () => {
+    const agent = await createAuthenticatedAgent(app, {
+      email: 'owner@example.com',
+    });
+
+    const draftResponse = await agent
+      .post('/properties/drafts')
+      .set(CSRF_HEADER, CSRF_HEADER_VALUE)
+      .expect(201);
+
+    const propertyId = draftResponse.body.id as string;
+
+    const photoKey = `properties/${propertyId}/photos/test.webp`;
+    const pendingKey = `properties/${propertyId}/pending/test`;
+
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+
+    // Создаём подтверждённую фотографию
+    const photo = await prisma.propertyPhoto.create({
+      data: {
+        propertyId,
+        storageKey: photoKey,
+        contentType: 'image/webp',
+        sizeBytes: 1024,
+        position: 0,
+      },
+    });
+
+    // Создаём незавершённую загрузку
+    const upload = await prisma.propertyPhotoUpload.create({
+      data: {
+        propertyId,
+        storageKey: pendingKey,
+        contentType: 'image/jpeg',
+        sizeBytes: 1024,
+        expiresAt,
+      },
+    });
+
+    const beforeDelete = new Date();
+
+    // Удаляем объявление через настоящий HTTP API
+    await agent
+      .delete(`/properties/${propertyId}`)
+      .set(CSRF_HEADER, CSRF_HEADER_VALUE)
+      .expect(204);
+
+    const afterDelete = new Date();
+
+    // Объявление удалено
+    expect(
+      await prisma.property.findUnique({
+        where: { id: propertyId },
+      }),
+    ).toBeNull();
+
+    // Обе связанные записи удалены через Cascade
+    expect(
+      await prisma.propertyPhoto.findUnique({
+        where: { id: photo.id },
+      }),
+    ).toBeNull();
+
+    expect(
+      await prisma.propertyPhotoUpload.findUnique({
+        where: { id: upload.id },
+      }),
+    ).toBeNull();
+
+    // Но задания на физическое удаление файлов сохранились
+    const tasks = await prisma.storageDeletionTask.findMany();
+
+    expect(tasks).toHaveLength(2);
+
+    const photoTask = tasks.find((task) => task.storageKey === photoKey);
+
+    const pendingTask = tasks.find((task) => task.storageKey === pendingKey);
+
+    expect(photoTask).toBeDefined();
+    expect(pendingTask).toBeDefined();
+
+    // Постоянную фотографию разрешено удалять сразу
+    expect(photoTask!.availableAt.getTime()).toBeGreaterThanOrEqual(
+      beforeDelete.getTime(),
+    );
+
+    expect(photoTask!.availableAt.getTime()).toBeLessThanOrEqual(
+      afterDelete.getTime(),
+    );
+
+    // Временный файл — после expiresAt + 10 минут
+    expect(pendingTask!.availableAt).toEqual(
+      new Date(expiresAt.getTime() + 10 * 60 * 1000),
+    );
+  });
+
+  it('keeps property when storage deletion tasks cannot be created', async () => {
+    const agent = await createAuthenticatedAgent(app, {
+      email: 'owner@example.com',
+    });
+
+    const draftResponse = await agent
+      .post('/properties/drafts')
+      .set(CSRF_HEADER, CSRF_HEADER_VALUE)
+      .expect(201);
+
+    const propertyId = draftResponse.body.id as string;
+    const storageKey = `properties/${propertyId}/photos/test.webp`;
+
+    // Создаём фотографию объявления
+    const photo = await prisma.propertyPhoto.create({
+      data: {
+        propertyId,
+        storageKey,
+        contentType: 'image/webp',
+        sizeBytes: 1024,
+      },
+    });
+
+    // Заранее создаём задание с тем же storageKey
+    await prisma.storageDeletionTask.create({
+      data: {
+        storageKey,
+        availableAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      },
+    });
+
+    // Скрываем ожидаемый ERROR от NestJS
+    const errorLogSpy = vi
+      .spyOn(Logger.prototype, 'error')
+      .mockImplementation(() => undefined);
+
+    try {
+      await agent
+        .delete(`/properties/${propertyId}`)
+        .set(CSRF_HEADER, CSRF_HEADER_VALUE)
+        .expect(500);
+    } finally {
+      errorLogSpy.mockRestore();
+    }
+
+    // Объявление должно остаться
+    const property = await prisma.property.findUnique({
+      where: { id: propertyId },
+    });
+
+    expect(property).not.toBeNull();
+
+    // Фотография тоже должна остаться
+    const savedPhoto = await prisma.propertyPhoto.findUnique({
+      where: { id: photo.id },
+    });
+
+    expect(savedPhoto).not.toBeNull();
+
+    // Существующее задание не должно исчезнуть
+    const tasks = await prisma.storageDeletionTask.findMany({
+      where: { storageKey },
+    });
+
+    expect(tasks).toHaveLength(1);
+  });
 });
