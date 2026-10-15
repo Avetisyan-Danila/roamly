@@ -3,9 +3,13 @@ import { ConfigService } from '@nestjs/config';
 import { S3Client } from '@aws-sdk/client-s3';
 
 import type { Env } from '../config/env.validation.js';
+import { PrismaModule } from '../prisma/prisma.module.js';
 import { StorageService } from './storage.service.js';
+import { StorageDeletionTaskService } from './storage-deletion-task.service.js';
+import { StorageDeletionTaskJob } from './storage-deletion-task.job.js';
 
 @Module({
+  imports: [PrismaModule],
   providers: [
     {
       provide: S3Client,
@@ -29,6 +33,8 @@ import { StorageService } from './storage.service.js';
         }),
     },
     StorageService,
+    StorageDeletionTaskService,
+    StorageDeletionTaskJob,
   ],
   exports: [S3Client, StorageService],
 })

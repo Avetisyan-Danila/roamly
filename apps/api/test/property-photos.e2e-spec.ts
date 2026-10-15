@@ -10,12 +10,15 @@ import { createAuthenticatedAgent } from './helpers/auth.js';
 import { CSRF_HEADER, CSRF_HEADER_VALUE } from './helpers/http.js';
 import { PropertyPhotoCleanupService } from '../src/properties/photos/property-photo-cleanup.service.js';
 import { CronExpression, SchedulerRegistry } from '@nestjs/schedule';
+import { StorageDeletionTaskService } from '../src/storage/storage-deletion-task.service.js';
+import { randomUUID } from 'node:crypto';
 
 describe('Property photos (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
   let storage: StorageService;
   let cleanupService: PropertyPhotoCleanupService;
+  let deletionTaskService: StorageDeletionTaskService;
 
   const storageKeysToCleanUp = new Set<string>();
 
@@ -26,6 +29,7 @@ describe('Property photos (e2e)', () => {
     prisma = context.prisma;
     storage = app.get(StorageService);
     cleanupService = app.get(PropertyPhotoCleanupService);
+    deletionTaskService = app.get(StorageDeletionTaskService);
   });
 
   beforeEach(async () => {
@@ -849,5 +853,190 @@ describe('Property photos (e2e)', () => {
     });
 
     expect(tasks).toHaveLength(1);
+  });
+
+  it('deletes storage objects and completed deletion tasks', async () => {
+    const storageKey = `test/storage-deletion/${randomUUID()}.webp`;
+
+    // Создаём настоящее WebP-изображение
+    const webp = await sharp({
+      create: {
+        width: 100,
+        height: 100,
+        channels: 3,
+        background: '#abcdef',
+      },
+    })
+      .webp()
+      .toBuffer();
+
+    // Регистрируем файл для очистки после теста
+    storageKeysToCleanUp.add(storageKey);
+
+    // Сохраняем фотографию в настоящий SeaweedFS
+    await storage.saveProcessedPhoto(storageKey, webp);
+
+    // Убеждаемся, что объект существует
+    const storedPhoto = await storage.readPhotoForValidation(storageKey);
+
+    expect(storedPhoto.buffer.equals(webp)).toBe(true);
+
+    // Создаём задание, которое уже можно выполнять
+    const task = await prisma.storageDeletionTask.create({
+      data: {
+        storageKey,
+        availableAt: new Date(Date.now() - 60_000),
+      },
+    });
+
+    // Запускаем обработчик вручную
+    const result = await deletionTaskService.processDueTasks();
+
+    expect(result).toEqual({
+      deleted: 1,
+      failed: 0,
+    });
+
+    // Задание должно исчезнуть из PostgreSQL
+    const remainingTask = await prisma.storageDeletionTask.findUnique({
+      where: { id: task.id },
+    });
+
+    expect(remainingTask).toBeNull();
+
+    // Файл должен исчезнуть из SeaweedFS
+    await expect(
+      storage.readPhotoForValidation(storageKey),
+    ).rejects.toMatchObject({
+      $metadata: {
+        httpStatusCode: 404,
+      },
+    });
+  });
+
+  it('retries storage deletion after a failure', async () => {
+    const storageKey = `test/storage-deletion/${randomUUID()}.webp`;
+
+    const webp = await sharp({
+      create: {
+        width: 100,
+        height: 100,
+        channels: 3,
+        background: '#abcdef',
+      },
+    })
+      .webp()
+      .toBuffer();
+
+    storageKeysToCleanUp.add(storageKey);
+
+    // Сохраняем настоящий файл в SeaweedFS
+    await storage.saveProcessedPhoto(storageKey, webp);
+
+    // Создаём задание, которое уже пора выполнить
+    const task = await prisma.storageDeletionTask.create({
+      data: {
+        storageKey,
+        availableAt: new Date(Date.now() - 60_000),
+      },
+    });
+
+    // Имитируем недоступность S3 только при первой попытке
+    const deleteSpy = vi
+      .spyOn(storage, 'deleteObject')
+      .mockRejectedValueOnce(new Error('S3 temporarily unavailable'));
+
+    // Скрываем ожидаемую ошибку в консоли теста
+    const errorLogSpy = vi
+      .spyOn(Logger.prototype, 'error')
+      .mockImplementation(() => undefined);
+
+    const beforeRun = Date.now();
+
+    try {
+      const result = await deletionTaskService.processDueTasks();
+
+      expect(result).toEqual({
+        deleted: 0,
+        failed: 1,
+      });
+
+      expect(deleteSpy).toHaveBeenCalledWith(storageKey);
+
+      expect(errorLogSpy).toHaveBeenCalledWith(
+        `Failed to delete storage object ${storageKey}`,
+        expect.stringContaining('S3 temporarily unavailable'),
+      );
+    } finally {
+      deleteSpy.mockRestore();
+      errorLogSpy.mockRestore();
+    }
+
+    const afterRun = Date.now();
+
+    // Задание осталось в PostgreSQL
+    const pendingTask = await prisma.storageDeletionTask.findUniqueOrThrow({
+      where: { id: task.id },
+    });
+
+    // Повторная попытка назначена примерно через 10 минут
+    expect(pendingTask.availableAt.getTime()).toBeGreaterThanOrEqual(
+      beforeRun + 10 * 60 * 1000,
+    );
+
+    expect(pendingTask.availableAt.getTime()).toBeLessThanOrEqual(
+      afterRun + 10 * 60 * 1000,
+    );
+
+    // Файл тоже остался в SeaweedFS
+    const storedPhoto = await storage.readPhotoForValidation(storageKey);
+
+    expect(storedPhoto.buffer.equals(webp)).toBe(true);
+
+    // Пока время повторной попытки не наступило, задание не выполняется
+    expect(await deletionTaskService.processDueTasks()).toEqual({
+      deleted: 0,
+      failed: 0,
+    });
+
+    // Имитируем наступление времени повторной попытки
+    await prisma.storageDeletionTask.update({
+      where: { id: task.id },
+      data: {
+        availableAt: new Date(Date.now() - 60_000),
+      },
+    });
+
+    // Теперь удаление должно пройти успешно
+    expect(await deletionTaskService.processDueTasks()).toEqual({
+      deleted: 1,
+      failed: 0,
+    });
+
+    // Задание удалено
+    expect(
+      await prisma.storageDeletionTask.findUnique({
+        where: { id: task.id },
+      }),
+    ).toBeNull();
+
+    // Файл удалён из SeaweedFS
+    await expect(
+      storage.readPhotoForValidation(storageKey),
+    ).rejects.toMatchObject({
+      $metadata: {
+        httpStatusCode: 404,
+      },
+    });
+  });
+
+  it('registers storage deletion cron job', () => {
+    const schedulerRegistry = app.get(SchedulerRegistry);
+
+    const cronJob = schedulerRegistry.getCronJob('storage-deletion-tasks');
+
+    expect(cronJob).toBeDefined();
+
+    expect(cronJob.cronTime.source).toBe(CronExpression.EVERY_10_MINUTES);
   });
 });
