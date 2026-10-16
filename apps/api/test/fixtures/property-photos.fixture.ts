@@ -73,22 +73,23 @@ export function uploadToStorage(
   });
 }
 
-export function seedPropertyPhotos(
+export async function seedPropertyPhotos(
   prisma: PrismaService,
   propertyId: string,
   count: number,
 ): Promise<PropertyPhoto[]> {
-  return Promise.all(
-    Array.from({ length: count }, (_, position) =>
-      prisma.propertyPhoto.create({
-        data: {
-          propertyId,
-          storageKey: `test/properties/${propertyId}/photo-${position}.webp`,
-          contentType: 'image/webp',
-          sizeBytes: 1024,
-          position,
-        },
-      }),
-    ),
-  );
+  await prisma.propertyPhoto.createMany({
+    data: Array.from({ length: count }, (_, position) => ({
+      propertyId,
+      storageKey: `test/properties/${propertyId}/photo-${position}.webp`,
+      contentType: 'image/webp',
+      sizeBytes: 1024,
+      position,
+    })),
+  });
+
+  return prisma.propertyPhoto.findMany({
+    where: { propertyId },
+    orderBy: { position: 'asc' },
+  });
 }

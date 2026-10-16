@@ -7,6 +7,7 @@ import { StorageService } from '../src/storage/storage.service.js';
 import { PropertyPhotoCleanupService } from '../src/properties/photos/property-photo-cleanup.service.js';
 import { createE2eApp } from './helpers/create-e2e-app.js';
 import { resetDatabase } from './helpers/reset-database.js';
+import { deleteStorageObjects } from './helpers/storage.js';
 import { createAuthenticatedAgent } from './helpers/auth.js';
 import {
   createDraft,
@@ -38,9 +39,7 @@ describe('Property photo cleanup (e2e)', () => {
   });
 
   afterEach(async () => {
-    for (const storageKey of storageKeysToCleanUp) {
-      await storage.deleteObject(storageKey);
-    }
+    await deleteStorageObjects(storage, storageKeysToCleanUp);
   });
 
   afterAll(async () => {

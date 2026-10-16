@@ -8,6 +8,7 @@ import { StorageService } from '../src/storage/storage.service.js';
 import { StorageDeletionTaskService } from '../src/storage/storage-deletion-task.service.js';
 import { createE2eApp } from './helpers/create-e2e-app.js';
 import { resetDatabase } from './helpers/reset-database.js';
+import { deleteStorageObjects } from './helpers/storage.js';
 import { createAuthenticatedAgent } from './helpers/auth.js';
 import { CSRF_HEADER, CSRF_HEADER_VALUE } from './helpers/http.js';
 import {
@@ -38,9 +39,7 @@ describe('Storage deletion (e2e)', () => {
   });
 
   afterEach(async () => {
-    for (const storageKey of storageKeysToCleanUp) {
-      await storage.deleteObject(storageKey);
-    }
+    await deleteStorageObjects(storage, storageKeysToCleanUp);
   });
 
   afterAll(async () => {
