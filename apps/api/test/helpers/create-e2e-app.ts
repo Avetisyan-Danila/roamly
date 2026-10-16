@@ -1,5 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { SchedulerRegistry } from '@nestjs/schedule';
 import { Test, TestingModule } from '@nestjs/testing';
 
 import { AppModule } from '../../src/app.module.js';
@@ -22,6 +23,10 @@ export async function createE2eApp(): Promise<E2eContext> {
   configureApp(app);
 
   await app.init();
+
+  for (const cronJob of app.get(SchedulerRegistry).getCronJobs().values()) {
+    await cronJob.stop();
+  }
 
   const prisma = app.get(PrismaService);
   const configService = app.get(ConfigService<Env, true>);
