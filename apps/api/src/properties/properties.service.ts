@@ -21,6 +21,25 @@ import { randomUUID } from 'node:crypto';
 import { processPropertyPhoto } from './photos/process-property-photo.js';
 import { PHOTO_CLEANUP_GRACE_PERIOD_MS } from './photos/photo-cleanup.constants.js';
 
+function isTransactionWriteConflict(error: unknown): boolean {
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    return error.code === 'P2034';
+  }
+
+  if (!(error instanceof Error) || error.name !== 'DriverAdapterError') {
+    return false;
+  }
+
+  const cause = error.cause;
+
+  return (
+    typeof cause === 'object' &&
+    cause !== null &&
+    'kind' in cause &&
+    cause.kind === 'TransactionWriteConflict'
+  );
+}
+
 @Injectable()
 export class PropertiesService {
   private readonly logger = new Logger(PropertiesService.name);
@@ -306,10 +325,7 @@ export class PropertiesService {
         },
       );
     } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2034'
-      ) {
+      if (isTransactionWriteConflict(error)) {
         throw new ConflictException('Concurrent property change, please retry');
       }
 
@@ -495,13 +511,115 @@ export class PropertiesService {
         );
       }
 
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2034'
-      ) {
+      if (isTransactionWriteConflict(error)) {
         throw new ConflictException(
           'Concurrent photo confirmation, please retry',
         );
+      }
+
+      throw error;
+    }
+  }
+
+  async listDraftPhotos(
+    propertyId: string,
+    ownerId: string,
+  ): Promise<{ id: string; url: string; position: number }[]> {
+    await this.propertyAuthorizationService.ensureOwner(
+      propertyId,
+      ownerId,
+      PropertyStatus.DRAFT,
+    );
+
+    const photos = await this.prisma.propertyPhoto.findMany({
+      where: { propertyId },
+      orderBy: { position: 'asc' },
+      select: {
+        id: true,
+        storageKey: true,
+        position: true,
+      },
+    });
+
+    return Promise.all(
+      photos.map(async (photo) => ({
+        id: photo.id,
+        position: photo.position,
+        url: await this.storageService.createDownloadUrl(photo.storageKey),
+      })),
+    );
+  }
+
+  async removeDraftPhoto(
+    propertyId: string,
+    ownerId: string,
+    photoId: string,
+  ): Promise<void> {
+    await this.propertyAuthorizationService.ensureOwner(
+      propertyId,
+      ownerId,
+      PropertyStatus.DRAFT,
+    );
+
+    try {
+      await this.prisma.$transaction(
+        async (tx) => {
+          const draft = await tx.property.findFirst({
+            where: {
+              id: propertyId,
+              ownerId,
+              status: PropertyStatus.DRAFT,
+            },
+            select: { id: true },
+          });
+
+          if (!draft) {
+            throw new ConflictException('Property is no longer a draft');
+          }
+
+          const photo = await tx.propertyPhoto.findFirst({
+            where: {
+              id: photoId,
+              propertyId,
+            },
+            select: {
+              storageKey: true,
+              position: true,
+            },
+          });
+
+          if (!photo) {
+            throw new NotFoundException('Property photo not found');
+          }
+
+          await tx.storageDeletionTask.create({
+            data: {
+              storageKey: photo.storageKey,
+              availableAt: new Date(),
+            },
+          });
+
+          await tx.propertyPhoto.delete({
+            where: { id: photoId },
+          });
+
+          await tx.propertyPhoto.updateMany({
+            where: {
+              propertyId,
+              position: { gt: photo.position },
+            },
+            data: {
+              position: { decrement: 1 },
+            },
+          });
+        },
+        {
+          isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+        },
+      );
+    } catch (error) {
+      if (isTransactionWriteConflict(error)) {
+        throw new ConflictException('Concurrent photo change, please retry');
       }
 
       throw error;

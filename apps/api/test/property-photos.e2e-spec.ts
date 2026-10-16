@@ -133,6 +133,33 @@ describe('Property photos (e2e)', () => {
     expect(photo.contentType).toBe('image/webp');
     expect(photo.sizeBytes).toBeGreaterThan(0);
 
+    // Получаем фотографии объявления через API
+    const photosResponse = await agent
+      .get(`/properties/drafts/${propertyId}/photos`)
+      .expect(200);
+
+    expect(photosResponse.body).toHaveLength(1);
+
+    const listedPhoto = photosResponse.body[0] as {
+      id: string;
+      url: string;
+      position: number;
+    };
+
+    expect(listedPhoto.id).toBe(photo.id);
+    expect(listedPhoto.position).toBe(0);
+
+    // Проверяем, что подписанная ссылка действительно работает
+    const downloadResponse = await fetch(listedPhoto.url);
+
+    expect(downloadResponse.status).toBe(200);
+
+    const downloadedBuffer = Buffer.from(await downloadResponse.arrayBuffer());
+
+    const downloadedMetadata = await sharp(downloadedBuffer).metadata();
+
+    expect(downloadedMetadata.format).toBe('webp');
+
     // 8. Проверяем, что временная запись удалена
     const pending = await prisma.propertyPhotoUpload.findUnique({
       where: { id: uploadId },
@@ -181,6 +208,64 @@ describe('Property photos (e2e)', () => {
     );
 
     expect(originalPhoto.buffer.equals(jpeg)).toBe(true);
+  });
+
+  it('deletes a draft photo and updates remaining positions', async () => {
+    const agent = await createAuthenticatedAgent(app, {
+      email: 'owner@example.com',
+    });
+
+    const draftResponse = await agent
+      .post('/properties/drafts')
+      .set(CSRF_HEADER, CSRF_HEADER_VALUE)
+      .expect(201);
+
+    const propertyId = draftResponse.body.id as string;
+
+    // Создаём три фотографии с позициями 0, 1, 2
+    const photos = await Promise.all(
+      [0, 1, 2].map((position) =>
+        prisma.propertyPhoto.create({
+          data: {
+            propertyId,
+            storageKey: `test/properties/${propertyId}/photo-${position}.webp`,
+            contentType: 'image/webp',
+            sizeBytes: 1024,
+            position,
+          },
+        }),
+      ),
+    );
+
+    // Удаляем среднюю фотографию
+    await agent
+      .delete(`/properties/drafts/${propertyId}/photos/${photos[1].id}`)
+      .set(CSRF_HEADER, CSRF_HEADER_VALUE)
+      .expect(204);
+
+    // Проверяем оставшиеся фотографии
+    const remaining = await prisma.propertyPhoto.findMany({
+      where: { propertyId },
+      orderBy: { position: 'asc' },
+    });
+
+    expect(
+      remaining.map((photo) => ({
+        id: photo.id,
+        position: photo.position,
+      })),
+    ).toEqual([
+      { id: photos[0].id, position: 0 },
+      { id: photos[2].id, position: 1 },
+    ]);
+
+    // Проверяем задание на удаление файла из SeaweedFS
+    const deletionTask = await prisma.storageDeletionTask.findUnique({
+      where: { storageKey: photos[1].storageKey },
+    });
+
+    expect(deletionTask).not.toBeNull();
+    expect(deletionTask!.availableAt.getTime()).toBeLessThanOrEqual(Date.now());
   });
 
   it('prevents uploading photos to another user draft', async () => {

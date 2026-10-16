@@ -137,4 +137,19 @@ export class StorageService {
       }),
     );
   }
+
+  async createDownloadUrl(storageKey: string): Promise<string> {
+    const bucket = this.config.getOrThrow('S3_BUCKET', {
+      infer: true,
+    });
+
+    return getSignedUrl(
+      this.s3Client,
+      new GetObjectCommand({
+        Bucket: bucket,
+        Key: storageKey,
+      }),
+      { expiresIn: 15 * 60 },
+    );
+  }
 }

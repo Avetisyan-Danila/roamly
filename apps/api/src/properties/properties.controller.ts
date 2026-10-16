@@ -31,6 +31,23 @@ export class PropertiesController {
     return this.propertiesService.createDraft(user.userId);
   }
 
+  @Get('drafts/:id')
+  findDraft(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<DraftPropertyResponseDto> {
+    return this.propertiesService.findDraft(id, user.userId);
+  }
+
+  @Patch('drafts/:id')
+  updateDraft(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: UpdatePropertyDto,
+  ): Promise<DraftPropertyResponseDto> {
+    return this.propertiesService.updateDraft(id, user.userId, dto);
+  }
+
   @Post('drafts/:id/photos/upload-url')
   createPhotoUploadUrl(
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
@@ -49,12 +66,22 @@ export class PropertiesController {
     return this.propertiesService.confirmPhotoUpload(id, user.userId, uploadId);
   }
 
-  @Get('drafts/:id')
-  findDraft(
+  @Get('drafts/:id/photos')
+  listDraftPhotos(
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @CurrentUser() user: AuthenticatedUser,
-  ): Promise<DraftPropertyResponseDto> {
-    return this.propertiesService.findDraft(id, user.userId);
+  ): Promise<{ id: string; url: string; position: number }[]> {
+    return this.propertiesService.listDraftPhotos(id, user.userId);
+  }
+
+  @Delete('drafts/:id/photos/:photoId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async removeDraftPhoto(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Param('photoId', new ParseUUIDPipe({ version: '4' })) photoId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<void> {
+    await this.propertiesService.removeDraftPhoto(id, user.userId, photoId);
   }
 
   @Public()
@@ -63,15 +90,6 @@ export class PropertiesController {
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
   ): Promise<PropertyResponseDto> {
     return this.propertiesService.findOne(id);
-  }
-
-  @Patch('drafts/:id')
-  updateDraft(
-    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
-    @CurrentUser() user: AuthenticatedUser,
-    @Body() dto: UpdatePropertyDto,
-  ): Promise<DraftPropertyResponseDto> {
-    return this.propertiesService.updateDraft(id, user.userId, dto);
   }
 
   @Patch(':id')
