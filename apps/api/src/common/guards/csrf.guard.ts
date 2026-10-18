@@ -5,8 +5,8 @@ import {
   Injectable,
 } from '@nestjs/common';
 
-const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
-const CSRF_HEADER_NAME = 'x-csrf-protection';
+export const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+export const CSRF_HEADER_NAME = 'x-csrf-protection';
 const CSRF_HEADER_VALUE = 'enabled';
 
 @Injectable()

@@ -20,6 +20,9 @@ import { UpdatePropertyDto } from './dto/update-property.dto.js';
 import { DraftPropertyResponseDto } from './dto/draft-property-response.dto.js';
 import { CreatePhotoUploadUrlDto } from './dto/create-photo-upload-url.dto.js';
 import { PropertyDetailsResponseDto } from './dto/property-details-response.dto.js';
+import { PhotoUploadUrlResponseDto } from './dto/photo-upload-url-response.dto.js';
+import { ConfirmedPhotoResponseDto } from './dto/confirmed-photo-response.dto.js';
+import { PropertyPhotoResponseDto } from './dto/property-photo-response.dto.js';
 
 @Controller('properties')
 export class PropertiesController {
@@ -54,7 +57,7 @@ export class PropertiesController {
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: CreatePhotoUploadUrlDto,
-  ): Promise<{ uploadId: string; uploadUrl: string }> {
+  ): Promise<PhotoUploadUrlResponseDto> {
     return this.propertiesService.createPhotoUploadUrl(id, user.userId, dto);
   }
 
@@ -63,7 +66,7 @@ export class PropertiesController {
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Param('uploadId', new ParseUUIDPipe({ version: '4' })) uploadId: string,
     @CurrentUser() user: AuthenticatedUser,
-  ): Promise<{ id: string }> {
+  ): Promise<ConfirmedPhotoResponseDto> {
     return this.propertiesService.confirmPhotoUpload(id, user.userId, uploadId);
   }
 
@@ -71,7 +74,7 @@ export class PropertiesController {
   listDraftPhotos(
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @CurrentUser() user: AuthenticatedUser,
-  ): Promise<{ id: string; url: string; position: number }[]> {
+  ): Promise<PropertyPhotoResponseDto[]> {
     return this.propertiesService.listDraftPhotos(id, user.userId);
   }
 

@@ -21,7 +21,8 @@ import {
 } from './auth.constants.js';
 
 import type { Request, Response } from 'express';
-import type { LoginResponse } from './types/login-response.type.js';
+import { LoginResponseDto } from './dto/login-response.dto.js';
+import { UserResponseDto } from '../users/dto/user-response.dto.js';
 import type { Env } from '../config/env.validation.js';
 
 @Controller('auth')
@@ -33,7 +34,7 @@ export class AuthController {
 
   @Public()
   @Post('register')
-  register(@Body() registerDto: RegisterDto) {
+  register(@Body() registerDto: RegisterDto): Promise<UserResponseDto> {
     return this.authService.register(registerDto);
   }
 
@@ -43,7 +44,7 @@ export class AuthController {
   async login(
     @Body() loginDto: LoginDto,
     @Res({ passthrough: true }) response: Response,
-  ): Promise<LoginResponse> {
+  ): Promise<LoginResponseDto> {
     const result = await this.authService.login(loginDto);
 
     const accessTokenTtlSeconds = this.configService.getOrThrow(

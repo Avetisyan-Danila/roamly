@@ -12,6 +12,7 @@ import type { LoginDto } from './dto/login.dto.js';
 import type { LoginResult } from './types/login-result.type.js';
 import type { RefreshResult } from './types/refresh-result.type.js';
 import type { Env } from '../config/env.validation.js';
+import type { UserResponseDto } from '../users/dto/user-response.dto.js';
 
 @Injectable()
 export class AuthService {
@@ -21,7 +22,7 @@ export class AuthService {
     private readonly configService: ConfigService<Env, true>,
   ) {}
 
-  async register(registerDto: RegisterDto) {
+  async register(registerDto: RegisterDto): Promise<UserResponseDto> {
     const passwordHash = await argon2.hash(registerDto.password, {
       type: argon2.argon2id,
     });

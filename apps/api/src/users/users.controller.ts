@@ -1,6 +1,7 @@
 import { Controller, Get } from '@nestjs/common';
 import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
 import { UsersService } from './users.service.js';
+import { UserResponseDto } from './dto/user-response.dto.js';
 
 import type { AuthenticatedUser } from '../auth/types/authenticated-user.type.js';
 
@@ -9,7 +10,9 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get('me')
-  getMe(@CurrentUser() currentUser: AuthenticatedUser) {
+  getMe(
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ): Promise<UserResponseDto> {
     return this.usersService.findById(currentUser.userId);
   }
 }

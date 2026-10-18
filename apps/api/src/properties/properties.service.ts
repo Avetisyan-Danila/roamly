@@ -24,6 +24,9 @@ import { plainToInstance } from 'class-transformer';
 import { CreatePropertyDto } from './dto/create-property.dto.js';
 import { validateSync } from 'class-validator';
 import { PropertyDetailsResponseDto } from './dto/property-details-response.dto.js';
+import { PhotoUploadUrlResponseDto } from './dto/photo-upload-url-response.dto.js';
+import { ConfirmedPhotoResponseDto } from './dto/confirmed-photo-response.dto.js';
+import { PropertyPhotoResponseDto } from './dto/property-photo-response.dto.js';
 
 function isTransactionWriteConflict(error: unknown): boolean {
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
@@ -463,7 +466,7 @@ export class PropertiesService {
     propertyId: string,
     ownerId: string,
     dto: CreatePhotoUploadUrlDto,
-  ): Promise<{ uploadId: string; uploadUrl: string }> {
+  ): Promise<PhotoUploadUrlResponseDto> {
     await this.propertyAuthorizationService.ensureOwner(
       propertyId,
       ownerId,
@@ -505,7 +508,7 @@ export class PropertiesService {
     propertyId: string,
     ownerId: string,
     uploadId: string,
-  ): Promise<{ id: string }> {
+  ): Promise<ConfirmedPhotoResponseDto> {
     await this.propertyAuthorizationService.ensureOwner(
       propertyId,
       ownerId,
@@ -643,7 +646,7 @@ export class PropertiesService {
   async listDraftPhotos(
     propertyId: string,
     ownerId: string,
-  ): Promise<{ id: string; url: string; position: number }[]> {
+  ): Promise<PropertyPhotoResponseDto[]> {
     await this.propertyAuthorizationService.ensureOwner(
       propertyId,
       ownerId,
