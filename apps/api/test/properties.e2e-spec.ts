@@ -294,7 +294,7 @@ describe('Properties (e2e)', () => {
       const propertyId = await createFilledDraft(agent);
 
       // Подготавливаем одну подтверждённую фотографию
-      await seedPropertyPhotos(prisma, propertyId, 1);
+      const [photo] = await seedPropertyPhotos(prisma, propertyId, 1);
 
       const response = await agent
         .post(`/properties/${propertyId}/publish`)
@@ -308,10 +308,18 @@ describe('Properties (e2e)', () => {
         pricePerNight: validPropertyData.pricePerNight,
       });
 
-      // Теперь объявление доступно публично, без авторизации
-      await request(app.getHttpServer())
+      // Объявление и его фотографии доступны публично
+      const publicResponse = await request(app.getHttpServer())
         .get(`/properties/${propertyId}`)
         .expect(200);
+
+      expect(publicResponse.body.photos).toEqual([
+        {
+          id: photo.id,
+          position: 0,
+          url: expect.stringMatching(/^https?:\/\//),
+        },
+      ]);
 
       // Повторная публикация запрещена
       await agent

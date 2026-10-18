@@ -23,6 +23,7 @@ import { PHOTO_CLEANUP_GRACE_PERIOD_MS } from './photos/photo-cleanup.constants.
 import { plainToInstance } from 'class-transformer';
 import { CreatePropertyDto } from './dto/create-property.dto.js';
 import { validateSync } from 'class-validator';
+import { PropertyDetailsResponseDto } from './dto/property-details-response.dto.js';
 
 function isTransactionWriteConflict(error: unknown): boolean {
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
@@ -122,7 +123,7 @@ export class PropertiesService {
     return PropertyMapper.toDraftResponse(property);
   }
 
-  async findOne(id: string): Promise<PropertyResponseDto> {
+  async findOne(id: string): Promise<PropertyDetailsResponseDto> {
     const property = await this.prisma.property.findFirst({
       where: {
         id,
@@ -130,6 +131,14 @@ export class PropertiesService {
       },
       include: {
         amenities: true,
+        propertyPhotos: {
+          orderBy: { position: 'asc' },
+          select: {
+            id: true,
+            storageKey: true,
+            position: true,
+          },
+        },
       },
     });
 
@@ -137,7 +146,18 @@ export class PropertiesService {
       throw new NotFoundException('Property not found');
     }
 
-    return PropertyMapper.toPublishedResponse(property);
+    const photos = await Promise.all(
+      property.propertyPhotos.map(async (photo) => ({
+        id: photo.id,
+        position: photo.position,
+        url: await this.storageService.createDownloadUrl(photo.storageKey),
+      })),
+    );
+
+    return {
+      ...PropertyMapper.toPublishedResponse(property),
+      photos,
+    };
   }
 
   async updateDraft(

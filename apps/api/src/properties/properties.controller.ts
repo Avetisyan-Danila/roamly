@@ -19,6 +19,7 @@ import { Public } from '../auth/decorators/public.decorator.js';
 import { UpdatePropertyDto } from './dto/update-property.dto.js';
 import { DraftPropertyResponseDto } from './dto/draft-property-response.dto.js';
 import { CreatePhotoUploadUrlDto } from './dto/create-photo-upload-url.dto.js';
+import { PropertyDetailsResponseDto } from './dto/property-details-response.dto.js';
 
 @Controller('properties')
 export class PropertiesController {
@@ -88,7 +89,7 @@ export class PropertiesController {
   @Get(':id')
   findOne(
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
-  ): Promise<PropertyResponseDto> {
+  ): Promise<PropertyDetailsResponseDto> {
     return this.propertiesService.findOne(id);
   }
 
