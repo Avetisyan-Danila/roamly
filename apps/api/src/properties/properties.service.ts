@@ -20,6 +20,9 @@ import { CreatePhotoUploadUrlDto } from './dto/create-photo-upload-url.dto.js';
 import { randomUUID } from 'node:crypto';
 import { processPropertyPhoto } from './photos/process-property-photo.js';
 import { PHOTO_CLEANUP_GRACE_PERIOD_MS } from './photos/photo-cleanup.constants.js';
+import { plainToInstance } from 'class-transformer';
+import { CreatePropertyDto } from './dto/create-property.dto.js';
+import { validateSync } from 'class-validator';
 
 function isTransactionWriteConflict(error: unknown): boolean {
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
@@ -334,6 +337,102 @@ export class PropertiesService {
         error.code === 'P2025'
       ) {
         throw new ConflictException('Property no longer exists');
+      }
+
+      throw error;
+    }
+  }
+
+  async publish(id: string, ownerId: string): Promise<PropertyResponseDto> {
+    await this.propertyAuthorizationService.ensureOwner(
+      id,
+      ownerId,
+      PropertyStatus.DRAFT,
+    );
+
+    try {
+      const property = await this.prisma.$transaction(
+        async (tx) => {
+          const draft = await tx.property.findFirst({
+            where: {
+              id,
+              ownerId,
+              status: PropertyStatus.DRAFT,
+            },
+            include: {
+              amenities: true,
+            },
+          });
+
+          if (!draft) {
+            throw new ConflictException('Property is no longer a draft');
+          }
+
+          const propertyData = plainToInstance(CreatePropertyDto, {
+            title: draft.title,
+            description: draft.description,
+            country: draft.country,
+            city: draft.city,
+            address: draft.address,
+            latitude: draft.latitude?.toNumber(),
+            longitude: draft.longitude?.toNumber(),
+            pricePerNight: draft.pricePerNight?.toFixed(2),
+            currency: draft.currency,
+            maxGuests: draft.maxGuests,
+            bedrooms: draft.bedrooms,
+            beds: draft.beds,
+            bathrooms: draft.bathrooms?.toNumber(),
+          });
+
+          const errors = validateSync(propertyData);
+
+          if (errors.length > 0) {
+            throw new UnprocessableEntityException({
+              message: 'Property has incomplete or invalid fields',
+              invalidFields: errors.map((error) => error.property),
+            });
+          }
+
+          const photoCount = await tx.propertyPhoto.count({
+            where: { propertyId: id },
+          });
+
+          if (photoCount === 0) {
+            throw new UnprocessableEntityException(
+              'At least one confirmed photo is required',
+            );
+          }
+
+          return tx.property.update({
+            where: {
+              id,
+              ownerId,
+              status: PropertyStatus.DRAFT,
+            },
+            data: {
+              status: PropertyStatus.PUBLISHED,
+            },
+            include: {
+              amenities: true,
+            },
+          });
+        },
+        {
+          isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+        },
+      );
+
+      return PropertyMapper.toPublishedResponse(property);
+    } catch (error) {
+      if (isTransactionWriteConflict(error)) {
+        throw new ConflictException('Concurrent property change, please retry');
+      }
+
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new ConflictException('Property is no longer a draft');
       }
 
       throw error;

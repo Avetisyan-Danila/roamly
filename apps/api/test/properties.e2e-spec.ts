@@ -7,6 +7,7 @@ import { resetDatabase } from './helpers/reset-database.js';
 import { createAuthenticatedAgent, TestAgent } from './helpers/auth.js';
 import { CSRF_HEADER, CSRF_HEADER_VALUE } from './helpers/http.js';
 import { createTestAmenities } from './fixtures/amenities.fixture.js';
+import { seedPropertyPhotos } from './fixtures/property-photos.fixture.js';
 
 describe('Properties (e2e)', () => {
   let app: INestApplication;
@@ -252,6 +253,138 @@ describe('Properties (e2e)', () => {
 
       // После удаления черновик больше не существует.
       await ownerAgent.get(`/properties/drafts/${propertyId}`).expect(404);
+    });
+  });
+
+  describe('POST /properties/:id/publish', () => {
+    const validPropertyData = {
+      title: 'Sunny apartment in Madrid',
+      description: 'A bright apartment near the city center.',
+      country: 'Spain',
+      city: 'Madrid',
+      address: 'Calle Mayor 12',
+      latitude: 40.4168,
+      longitude: -3.7038,
+      pricePerNight: '120.00',
+      currency: 'EUR',
+      maxGuests: 2,
+      bedrooms: 1,
+      beds: 1,
+      bathrooms: 1,
+    };
+
+    async function createFilledDraft(agent: TestAgent): Promise<string> {
+      const response = await createDraft(agent);
+      const propertyId = response.body.id as string;
+
+      await agent
+        .patch(`/properties/drafts/${propertyId}`)
+        .set(CSRF_HEADER, CSRF_HEADER_VALUE)
+        .send(validPropertyData)
+        .expect(200);
+
+      return propertyId;
+    }
+
+    it('publishes a complete draft and rejects repeated publication', async () => {
+      const agent = await createAuthenticatedAgent(app, {
+        email: 'owner@example.com',
+      });
+
+      const propertyId = await createFilledDraft(agent);
+
+      // Подготавливаем одну подтверждённую фотографию
+      await seedPropertyPhotos(prisma, propertyId, 1);
+
+      const response = await agent
+        .post(`/properties/${propertyId}/publish`)
+        .set(CSRF_HEADER, CSRF_HEADER_VALUE)
+        .expect(201);
+
+      expect(response.body).toMatchObject({
+        id: propertyId,
+        status: 'PUBLISHED',
+        title: validPropertyData.title,
+        pricePerNight: validPropertyData.pricePerNight,
+      });
+
+      // Теперь объявление доступно публично, без авторизации
+      await request(app.getHttpServer())
+        .get(`/properties/${propertyId}`)
+        .expect(200);
+
+      // Повторная публикация запрещена
+      await agent
+        .post(`/properties/${propertyId}/publish`)
+        .set(CSRF_HEADER, CSRF_HEADER_VALUE)
+        .expect(409);
+    });
+
+    it('rejects publishing an incomplete draft', async () => {
+      const agent = await createAuthenticatedAgent(app, {
+        email: 'owner@example.com',
+      });
+
+      const response = await createDraft(agent);
+      const propertyId = response.body.id as string;
+
+      await seedPropertyPhotos(prisma, propertyId, 1);
+
+      const publishResponse = await agent
+        .post(`/properties/${propertyId}/publish`)
+        .set(CSRF_HEADER, CSRF_HEADER_VALUE)
+        .expect(422);
+
+      expect(publishResponse.body.invalidFields).toEqual(
+        expect.arrayContaining(['title', 'pricePerNight']),
+      );
+
+      const property = await prisma.property.findUniqueOrThrow({
+        where: { id: propertyId },
+      });
+
+      expect(property.status).toBe('DRAFT');
+    });
+
+    it('requires at least one confirmed photo', async () => {
+      const agent = await createAuthenticatedAgent(app, {
+        email: 'owner@example.com',
+      });
+
+      const propertyId = await createFilledDraft(agent);
+
+      const response = await agent
+        .post(`/properties/${propertyId}/publish`)
+        .set(CSRF_HEADER, CSRF_HEADER_VALUE)
+        .expect(422);
+
+      expect(response.body.message).toBe(
+        'At least one confirmed photo is required',
+      );
+
+      const property = await prisma.property.findUniqueOrThrow({
+        where: { id: propertyId },
+      });
+
+      expect(property.status).toBe('DRAFT');
+    });
+
+    it('prevents another user from publishing the property', async () => {
+      const ownerAgent = await createAuthenticatedAgent(app, {
+        email: 'owner@example.com',
+      });
+
+      const anotherAgent = await createAuthenticatedAgent(app, {
+        email: 'another@example.com',
+      });
+
+      const response = await createDraft(ownerAgent);
+      const propertyId = response.body.id as string;
+
+      await anotherAgent
+        .post(`/properties/${propertyId}/publish`)
+        .set(CSRF_HEADER, CSRF_HEADER_VALUE)
+        .expect(403);
     });
   });
 });

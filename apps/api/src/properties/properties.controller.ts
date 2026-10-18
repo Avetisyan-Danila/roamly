@@ -109,4 +109,12 @@ export class PropertiesController {
   ): Promise<void> {
     await this.propertiesService.remove(id, user.userId);
   }
+
+  @Post(':id/publish')
+  publish(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<PropertyResponseDto> {
+    return this.propertiesService.publish(id, user.userId);
+  }
 }
