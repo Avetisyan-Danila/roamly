@@ -24,6 +24,19 @@ describe('App (e2e)', () => {
     await app.close();
   });
 
+  it('returns errors in a unified format', async () => {
+    // Ошибка guard'а без поля error в исходном теле Nest
+    const response = await request(app.getHttpServer())
+      .get('/users/me')
+      .expect(401);
+
+    expect(response.body).toEqual({
+      statusCode: 401,
+      error: 'Unauthorized',
+      message: 'Unauthorized',
+    });
+  });
+
   it('/amenities (GET)', () => {
     return request(app.getHttpServer())
       .get('/amenities')

@@ -343,6 +343,7 @@ describe('Properties (e2e)', () => {
         .set(CSRF_HEADER, CSRF_HEADER_VALUE)
         .expect(422);
 
+      expect(publishResponse.body.errorCode).toBe('PROPERTY_INCOMPLETE');
       expect(publishResponse.body.invalidFields).toEqual(
         expect.arrayContaining(['title', 'pricePerNight']),
       );
@@ -366,6 +367,7 @@ describe('Properties (e2e)', () => {
         .set(CSRF_HEADER, CSRF_HEADER_VALUE)
         .expect(422);
 
+      expect(response.body.errorCode).toBe('PHOTO_REQUIRED');
       expect(response.body.message).toBe(
         'At least one confirmed photo is required',
       );

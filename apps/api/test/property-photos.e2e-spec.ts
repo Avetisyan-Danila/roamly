@@ -319,7 +319,7 @@ describe('Property photos (e2e)', () => {
     await seedPropertyPhotos(prisma, propertyId, 10);
 
     // Backend должен отклонить запрос еще до выдачи ссылки
-    await agent
+    const response = await agent
       .post(`/properties/drafts/${propertyId}/photos/upload-url`)
       .set(CSRF_HEADER, CSRF_HEADER_VALUE)
       .send({
@@ -327,6 +327,8 @@ describe('Property photos (e2e)', () => {
         sizeBytes: 1024,
       })
       .expect(409);
+
+    expect(response.body.errorCode).toBe('PHOTO_LIMIT_REACHED');
 
     const photoCount = await prisma.propertyPhoto.count({
       where: { propertyId },
@@ -380,6 +382,15 @@ describe('Property photos (e2e)', () => {
       .sort((a, b) => a - b);
 
     expect(statuses).toEqual([201, 409]);
+
+    // Проигравший запрос упирается либо в лимит, либо в конфликт транзакций
+    const rejected = confirmResponses.find(
+      (response) => response.status === 409,
+    );
+
+    expect(['PHOTO_LIMIT_REACHED', 'CONCURRENT_MODIFICATION']).toContain(
+      rejected?.body.errorCode,
+    );
 
     const photoCount = await prisma.propertyPhoto.count({
       where: { propertyId },
