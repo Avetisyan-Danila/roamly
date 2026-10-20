@@ -1,5 +1,4 @@
 import {
-  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -7,6 +6,10 @@ import {
 
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { PropertyStatus } from '../../generated/prisma/enums.js';
+import {
+  PropertyNotDraftException,
+  PropertyNotPublishedException,
+} from '../../common/errors/exceptions.js';
 
 @Injectable()
 export class PropertyAuthorizationService {
@@ -36,7 +39,9 @@ export class PropertyAuthorizationService {
     }
 
     if (expectedStatus && property.status !== expectedStatus) {
-      throw new ConflictException('Property is not in the required status');
+      throw expectedStatus === PropertyStatus.DRAFT
+        ? new PropertyNotDraftException()
+        : new PropertyNotPublishedException();
     }
   }
 }

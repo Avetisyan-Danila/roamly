@@ -1,5 +1,6 @@
-import { UnprocessableEntityException } from '@nestjs/common';
 import sharp from 'sharp';
+
+import { InvalidPhotoException } from '../../common/errors/exceptions.js';
 
 const MAX_INPUT_PIXELS = 25_000_000;
 
@@ -41,6 +42,6 @@ export async function processPropertyPhoto(
       .webp({ quality: 82 })
       .toBuffer();
   } catch {
-    throw new UnprocessableEntityException('Invalid or unsupported photo');
+    throw new InvalidPhotoException('Invalid or unsupported photo');
   }
 }

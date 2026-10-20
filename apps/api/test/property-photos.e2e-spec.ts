@@ -250,6 +250,25 @@ describe('Property photos (e2e)', () => {
     expect(photoCount).toBe(0);
   });
 
+  it('rejects confirmation when the file was never uploaded', async () => {
+    const agent = await createAuthenticatedAgent(app, {
+      email: 'owner@example.com',
+    });
+    const propertyId = await createDraft(agent);
+    const { upload } = await requestPhotoUpload(
+      agent,
+      prisma,
+      propertyId,
+      1024,
+    );
+
+    // PUT в хранилище не выполняем
+    await agent
+      .post(`/properties/drafts/${propertyId}/photos/${upload.id}/confirm`)
+      .set(CSRF_HEADER, CSRF_HEADER_VALUE)
+      .expect(422);
+  });
+
   it('rejects invalid image content', async () => {
     const agent = await createAuthenticatedAgent(app, {
       email: 'owner@example.com',

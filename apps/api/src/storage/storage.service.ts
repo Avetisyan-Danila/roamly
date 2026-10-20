@@ -9,11 +9,13 @@ import {
   GetObjectCommand,
   HeadBucketCommand,
   HeadObjectCommand,
+  NotFound,
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
 import type { Env } from '../config/env.validation.js';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { InvalidPhotoException } from '../common/errors/exceptions.js';
 
 const MAX_PHOTO_SIZE_BYTES = 10 * 1024 * 1024;
 
@@ -66,12 +68,20 @@ export class StorageService {
       infer: true,
     });
 
-    const metadata = await this.s3Client.send(
-      new HeadObjectCommand({
-        Bucket: bucket,
-        Key: storageKey,
-      }),
-    );
+    const metadata = await this.s3Client
+      .send(
+        new HeadObjectCommand({
+          Bucket: bucket,
+          Key: storageKey,
+        }),
+      )
+      .catch((error: unknown) => {
+        if (error instanceof NotFound) {
+          throw new UnprocessableEntityException('Photo has not been uploaded');
+        }
+
+        throw error;
+      });
 
     const sizeBytes = metadata.ContentLength;
 
@@ -80,7 +90,7 @@ export class StorageService {
       sizeBytes < 1 ||
       sizeBytes > MAX_PHOTO_SIZE_BYTES
     ) {
-      throw new UnprocessableEntityException('Invalid photo size');
+      throw new InvalidPhotoException('Invalid photo size');
     }
 
     const object = await this.s3Client.send(
@@ -92,15 +102,13 @@ export class StorageService {
     );
 
     if (!object.Body) {
-      throw new UnprocessableEntityException('Photo content is missing');
+      throw new InvalidPhotoException('Photo content is missing');
     }
 
     const buffer = Buffer.from(await object.Body.transformToByteArray());
 
     if (buffer.length !== sizeBytes) {
-      throw new UnprocessableEntityException(
-        'Photo size changed during validation',
-      );
+      throw new InvalidPhotoException('Photo size changed during validation');
     }
 
     return {

@@ -4,7 +4,6 @@ import {
   Injectable,
   Logger,
   NotFoundException,
-  UnprocessableEntityException,
 } from '@nestjs/common';
 
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -24,6 +23,16 @@ import { plainToInstance } from 'class-transformer';
 import { CreatePropertyDto } from './dto/create-property.dto.js';
 import { validateSync } from 'class-validator';
 import { PropertyDetailsResponseDto } from './dto/property-details-response.dto.js';
+import {
+  ConcurrentModificationException,
+  InvalidPhotoException,
+  PhotoLimitReachedException,
+  PhotoRequiredException,
+  PhotoUploadUnavailableException,
+  PropertyIncompleteException,
+  PropertyNotDraftException,
+  PropertyNotPublishedException,
+} from '../common/errors/exceptions.js';
 import { PhotoUploadUrlResponseDto } from './dto/photo-upload-url-response.dto.js';
 import { ConfirmedPhotoResponseDto } from './dto/confirmed-photo-response.dto.js';
 import { PropertyPhotoResponseDto } from './dto/property-photo-response.dto.js';
@@ -220,7 +229,7 @@ export class PropertiesService {
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2025'
       ) {
-        throw new ConflictException('Property is no longer a draft');
+        throw new PropertyNotDraftException();
       }
 
       throw error;
@@ -287,7 +296,7 @@ export class PropertiesService {
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2025'
       ) {
-        throw new ConflictException('Property is no longer published');
+        throw new PropertyNotPublishedException();
       }
 
       throw error;
@@ -352,7 +361,7 @@ export class PropertiesService {
       );
     } catch (error) {
       if (isTransactionWriteConflict(error)) {
-        throw new ConflictException('Concurrent property change, please retry');
+        throw new ConcurrentModificationException();
       }
 
       if (
@@ -388,7 +397,7 @@ export class PropertiesService {
           });
 
           if (!draft) {
-            throw new ConflictException('Property is no longer a draft');
+            throw new PropertyNotDraftException();
           }
 
           const propertyData = plainToInstance(CreatePropertyDto, {
@@ -410,10 +419,9 @@ export class PropertiesService {
           const errors = validateSync(propertyData);
 
           if (errors.length > 0) {
-            throw new UnprocessableEntityException({
-              message: 'Property has incomplete or invalid fields',
-              invalidFields: errors.map((error) => error.property),
-            });
+            throw new PropertyIncompleteException(
+              errors.map((error) => error.property),
+            );
           }
 
           const photoCount = await tx.propertyPhoto.count({
@@ -421,9 +429,7 @@ export class PropertiesService {
           });
 
           if (photoCount === 0) {
-            throw new UnprocessableEntityException(
-              'At least one confirmed photo is required',
-            );
+            throw new PhotoRequiredException();
           }
 
           return tx.property.update({
@@ -448,14 +454,14 @@ export class PropertiesService {
       return PropertyMapper.toPublishedResponse(property);
     } catch (error) {
       if (isTransactionWriteConflict(error)) {
-        throw new ConflictException('Concurrent property change, please retry');
+        throw new ConcurrentModificationException();
       }
 
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2025'
       ) {
-        throw new ConflictException('Property is no longer a draft');
+        throw new PropertyNotDraftException();
       }
 
       throw error;
@@ -478,7 +484,7 @@ export class PropertiesService {
     });
 
     if (photoCount >= 10) {
-      throw new ConflictException('Maximum 10 photos allowed');
+      throw new PhotoLimitReachedException();
     }
 
     const storageKey = `properties/${propertyId}/pending/${randomUUID()}`;
@@ -524,7 +530,7 @@ export class PropertiesService {
     });
 
     if (!upload) {
-      throw new NotFoundException('Photo upload not found or expired');
+      throw new PhotoUploadUnavailableException();
     }
 
     const original = await this.storageService.readPhotoForValidation(
@@ -535,7 +541,7 @@ export class PropertiesService {
       original.sizeBytes !== upload.sizeBytes ||
       original.contentType !== upload.contentType
     ) {
-      throw new UnprocessableEntityException(
+      throw new InvalidPhotoException(
         'Uploaded photo does not match the requested file',
       );
     }
@@ -546,7 +552,7 @@ export class PropertiesService {
     );
 
     if (processed.length > 10 * 1024 * 1024) {
-      throw new UnprocessableEntityException('Processed photo is too large');
+      throw new InvalidPhotoException('Processed photo is too large');
     }
 
     const permanentStorageKey = `properties/${propertyId}/photos/${randomUUID()}.webp`;
@@ -568,9 +574,7 @@ export class PropertiesService {
           });
 
           if (result.count !== 1) {
-            throw new ConflictException(
-              'Photo upload already confirmed or expired',
-            );
+            throw new PhotoUploadUnavailableException();
           }
 
           const draft = await tx.property.findFirst({
@@ -583,7 +587,7 @@ export class PropertiesService {
           });
 
           if (!draft) {
-            throw new ConflictException('Property is no longer a draft');
+            throw new PropertyNotDraftException();
           }
 
           const photoCount = await tx.propertyPhoto.count({
@@ -591,7 +595,7 @@ export class PropertiesService {
           });
 
           if (photoCount >= 10) {
-            throw new ConflictException('Maximum 10 photos allowed');
+            throw new PhotoLimitReachedException();
           }
 
           const photo = await tx.propertyPhoto.create({
@@ -634,9 +638,7 @@ export class PropertiesService {
       }
 
       if (isTransactionWriteConflict(error)) {
-        throw new ConflictException(
-          'Concurrent photo confirmation, please retry',
-        );
+        throw new ConcurrentModificationException();
       }
 
       throw error;
@@ -696,7 +698,7 @@ export class PropertiesService {
           });
 
           if (!draft) {
-            throw new ConflictException('Property is no longer a draft');
+            throw new PropertyNotDraftException();
           }
 
           const photo = await tx.propertyPhoto.findFirst({
@@ -741,7 +743,7 @@ export class PropertiesService {
       );
     } catch (error) {
       if (isTransactionWriteConflict(error)) {
-        throw new ConflictException('Concurrent photo change, please retry');
+        throw new ConcurrentModificationException();
       }
 
       throw error;

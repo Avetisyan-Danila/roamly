@@ -7,7 +7,10 @@ import { StorageService } from '../src/storage/storage.service.js';
 import { PropertyPhotoCleanupService } from '../src/properties/photos/property-photo-cleanup.service.js';
 import { createE2eApp } from './helpers/create-e2e-app.js';
 import { resetDatabase } from './helpers/reset-database.js';
-import { deleteStorageObjects } from './helpers/storage.js';
+import {
+  deleteStorageObjects,
+  storageObjectExists,
+} from './helpers/storage.js';
 import { createAuthenticatedAgent } from './helpers/auth.js';
 import {
   createDraft,
@@ -91,13 +94,7 @@ describe('Property photo cleanup (e2e)', () => {
 
     expect(remainingUpload).toBeNull();
 
-    await expect(
-      storage.readPhotoForValidation(upload.storageKey),
-    ).rejects.toMatchObject({
-      $metadata: {
-        httpStatusCode: 404,
-      },
-    });
+    expect(await storageObjectExists(app, upload.storageKey)).toBe(false);
   });
 
   it('keeps expired uploads when storage deletion fails', async () => {

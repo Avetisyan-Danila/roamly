@@ -9,7 +9,8 @@ import { AmenitiesModule } from './amenities/amenities.module.js';
 import { validateEnv } from './config/env.validation.js';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard.js';
 import { CsrfGuard } from './common/guards/csrf.guard.js';
-import { APP_GUARD } from '@nestjs/core';
+import { ApiExceptionFilter } from './common/filters/api-exception.filter.js';
+import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
@@ -35,6 +36,10 @@ import { ScheduleModule } from '@nestjs/schedule';
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
+    },
+    {
+      provide: APP_FILTER,
+      useClass: ApiExceptionFilter,
     },
   ],
 })
