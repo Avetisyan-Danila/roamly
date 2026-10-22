@@ -13,12 +13,6 @@ export async function serverApiClient<T>(
 	path: string,
 	options: ApiRequestOptions = {},
 ): Promise<T> {
-	const apiUrl = process.env.API_URL
-
-	if (!apiUrl) {
-		throw new Error("API_URL is not configured")
-	}
-
 	const { json, auth = false, ...requestOptions } = options
 
 	const headers = new Headers(requestOptions.headers)
@@ -42,6 +36,12 @@ export async function serverApiClient<T>(
 		if (accessToken) {
 			headers.set("Cookie", `${ACCESS_TOKEN_COOKIE_NAME}=${accessToken}`)
 		}
+	}
+
+	const apiUrl = process.env.API_URL
+
+	if (!apiUrl) {
+		throw new Error("API_URL is not configured")
 	}
 
 	const response = await fetch(`${apiUrl}${path}`, {
