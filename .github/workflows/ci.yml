@@ -1,0 +1,91 @@
+name: CI
+
+on:
+  push:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:18.6
+        env:
+          POSTGRES_USER: roamly_test
+          POSTGRES_PASSWORD: roamly_test
+          POSTGRES_DB: roamly_test
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U roamly_test"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 20
+
+      seaweedfs:
+        image: chrislusf/seaweedfs:4.43_full
+        env:
+          AWS_ACCESS_KEY_ID: ci-access-key
+          AWS_SECRET_ACCESS_KEY: ci-secret-key
+          S3_BUCKET: roamly-test
+        ports:
+          - 8333:8333
+
+    # Throwaway values for CI-only containers, not secrets
+    env:
+      DATABASE_URL: postgresql://roamly_test:roamly_test@localhost:5433/roamly_test?schema=public
+      JWT_SECRET: ci-only-jwt-secret-at-least-32-characters
+      JWT_ACCESS_TTL_SECONDS: 900
+      FRONTEND_ORIGIN: http://localhost:3000
+      S3_ENDPOINT: http://127.0.0.1:8333
+      S3_REGION: us-east-1
+      S3_BUCKET: roamly-test
+      S3_ACCESS_KEY_ID: ci-access-key
+      S3_SECRET_ACCESS_KEY: ci-secret-key
+      S3_FORCE_PATH_STYLE: true
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+        with:
+          cache: true
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm --filter api prisma:generate
+
+      - name: Typecheck
+        run: pnpm -r typecheck
+
+      - name: Check OpenAPI contract is up to date
+        run: |
+          pnpm api:generate
+          git diff --exit-code -- apps/api/openapi.json apps/web/shared/api/generated/schema.d.ts \
+            || { echo "::error::OpenAPI contract is outdated, run 'pnpm api:generate' and commit the result"; exit 1; }
+
+      - name: Build
+        run: pnpm -r build
+
+      - name: Migrate test database
+        run: pnpm --filter api test:db:migrate
+
+      - name: Wait for S3 bucket
+        env:
+          AWS_ACCESS_KEY_ID: ci-access-key
+          AWS_SECRET_ACCESS_KEY: ci-secret-key
+          AWS_REGION: us-east-1
+        run: timeout 60 bash -c 'until aws s3api head-bucket --bucket roamly-test --endpoint-url "$S3_ENDPOINT" 2>/dev/null; do sleep 1; done'
+
+      - name: E2E tests
+        run: pnpm --filter api test:e2e

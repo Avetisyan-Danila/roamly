@@ -16,6 +16,7 @@
     "start:prod": "node dist/main",
     "openapi:generate": "nest build && node dist/scripts/generate-openapi.js",
     "lint": "oxlint src/ test/",
+    "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:cov": "vitest run --coverage",
