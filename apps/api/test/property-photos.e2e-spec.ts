@@ -61,7 +61,7 @@ describe('Property photos (e2e)', () => {
 
     storageKeysToCleanUp.add(upload.storageKey);
 
-    // Загружаем JPEG напрямую в SeaweedFS
+    // Upload JPEG directly to SeaweedFS
     const putResponse = await uploadToStorage(uploadUrl, jpeg);
 
     expect(putResponse.status).toBe(200);
@@ -98,7 +98,7 @@ describe('Property photos (e2e)', () => {
     expect(listedPhoto.id).toBe(photo.id);
     expect(listedPhoto.position).toBe(0);
 
-    // Проверяем, что подписанная ссылка действительно работает
+    // Check that the signed URL actually works
     const downloadResponse = await fetch(listedPhoto.url);
 
     expect(downloadResponse.status).toBe(200);
@@ -108,21 +108,21 @@ describe('Property photos (e2e)', () => {
 
     expect(downloadedMetadata.format).toBe('webp');
 
-    // Временная запись удалена
+    // The temporary record is deleted
     const pending = await prisma.propertyPhotoUpload.findUnique({
       where: { id: upload.id },
     });
 
     expect(pending).toBeNull();
 
-    // Проверяем реальный WebP в SeaweedFS
+    // Check the actual WebP in SeaweedFS
     const stored = await storage.readPhotoForValidation(photo.storageKey);
     const metadata = await sharp(stored.buffer).metadata();
 
     expect(metadata.format).toBe('webp');
     expect(stored.contentType).toBe('image/webp');
 
-    // Повторное подтверждение той же загрузки не создает дубликат
+    // Confirming the same upload again does not create a duplicate
     await agent
       .post(`/properties/drafts/${propertyId}/photos/${upload.id}/confirm`)
       .set(CSRF_HEADER, CSRF_HEADER_VALUE)
@@ -134,7 +134,7 @@ describe('Property photos (e2e)', () => {
 
     expect(photoCount).toBe(1);
 
-    // Для исходного файла создано задание на удаление
+    // A deletion task is created for the original file
     const deletionTask = await prisma.storageDeletionTask.findUnique({
       where: {
         storageKey: upload.storageKey,
@@ -143,12 +143,12 @@ describe('Property photos (e2e)', () => {
 
     expect(deletionTask).not.toBeNull();
 
-    // Удаление запланировано после срока загрузки + защитный период
+    // Deletion is scheduled after upload expiration + grace period
     expect(deletionTask?.availableAt.getTime()).toBe(
       upload.expiresAt.getTime() + PHOTO_CLEANUP_GRACE_PERIOD_MS,
     );
 
-    // Исходный файл пока еще существует в SeaweedFS
+    // The original file still exists in SeaweedFS
     const originalPhoto = await storage.readPhotoForValidation(
       upload.storageKey,
     );
@@ -163,7 +163,7 @@ describe('Property photos (e2e)', () => {
     const propertyId = await createDraft(agent);
     const photos = await seedPropertyPhotos(prisma, propertyId, 3);
 
-    // Удаляем среднюю фотографию
+    // Delete the middle photo
     await agent
       .delete(`/properties/drafts/${propertyId}/photos/${photos[1].id}`)
       .set(CSRF_HEADER, CSRF_HEADER_VALUE)
@@ -184,7 +184,7 @@ describe('Property photos (e2e)', () => {
       { id: photos[2].id, position: 1 },
     ]);
 
-    // Проверяем задание на удаление файла из SeaweedFS
+    // Check the task to delete the file from SeaweedFS
     const deletionTask = await prisma.storageDeletionTask.findUnique({
       where: { storageKey: photos[1].storageKey },
     });
@@ -230,7 +230,7 @@ describe('Property photos (e2e)', () => {
       1024,
     );
 
-    // Имитируем истечение срока подтверждения
+    // Simulate the confirmation deadline expiring
     await prisma.propertyPhotoUpload.update({
       where: { id: upload.id },
       data: {
@@ -262,7 +262,7 @@ describe('Property photos (e2e)', () => {
       1024,
     );
 
-    // PUT в хранилище не выполняем
+    // Skip the PUT to storage
     await agent
       .post(`/properties/drafts/${propertyId}/photos/${upload.id}/confirm`)
       .set(CSRF_HEADER, CSRF_HEADER_VALUE)
@@ -285,12 +285,12 @@ describe('Property photos (e2e)', () => {
 
     storageKeysToCleanUp.add(upload.storageKey);
 
-    // Загружаем текст вместо изображения
+    // Upload text instead of an image
     const putResponse = await uploadToStorage(uploadUrl, invalidFile);
 
     expect(putResponse.status).toBe(200);
 
-    // Backend должен отклонить файл при подтверждении
+    // Backend must reject the file on confirm
     await agent
       .post(`/properties/drafts/${propertyId}/photos/${upload.id}/confirm`)
       .set(CSRF_HEADER, CSRF_HEADER_VALUE)
@@ -302,7 +302,7 @@ describe('Property photos (e2e)', () => {
 
     expect(photoCount).toBe(0);
 
-    // Незавершенная загрузка остается в БД
+    // The unfinished upload stays in the DB
     const pending = await prisma.propertyPhotoUpload.findUnique({
       where: { id: upload.id },
     });
@@ -318,7 +318,7 @@ describe('Property photos (e2e)', () => {
 
     await seedPropertyPhotos(prisma, propertyId, 10);
 
-    // Backend должен отклонить запрос еще до выдачи ссылки
+    // Backend must reject the request before issuing a URL
     const response = await agent
       .post(`/properties/drafts/${propertyId}/photos/upload-url`)
       .set(CSRF_HEADER, CSRF_HEADER_VALUE)
@@ -352,7 +352,7 @@ describe('Property photos (e2e)', () => {
 
     await seedPropertyPhotos(prisma, propertyId, 9);
 
-    // Получаем две независимые ссылки на загрузку
+    // Get two independent upload URLs
     const uploads = [
       await requestPhotoUpload(agent, prisma, propertyId, jpeg.length),
       await requestPhotoUpload(agent, prisma, propertyId, jpeg.length),
@@ -368,7 +368,7 @@ describe('Property photos (e2e)', () => {
 
     expect(putResponses.map((response) => response.status)).toEqual([200, 200]);
 
-    // Подтверждаем обе загрузки одновременно
+    // Confirm both uploads concurrently
     const confirmResponses = await Promise.all(
       uploads.map(({ upload }) =>
         agent
@@ -383,7 +383,7 @@ describe('Property photos (e2e)', () => {
 
     expect(statuses).toEqual([201, 409]);
 
-    // Проигравший запрос упирается либо в лимит, либо в конфликт транзакций
+    // The losing request hits either the limit or a transaction conflict
     const rejected = confirmResponses.find(
       (response) => response.status === 409,
     );
@@ -398,7 +398,7 @@ describe('Property photos (e2e)', () => {
 
     expect(photoCount).toBe(10);
 
-    // Запоминаем созданный WebP для очистки после теста
+    // Remember the created WebP for cleanup after the test
     const savedPhoto = await prisma.propertyPhoto.findFirstOrThrow({
       where: {
         propertyId,

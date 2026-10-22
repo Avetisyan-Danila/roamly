@@ -25,7 +25,7 @@ describe('App (e2e)', () => {
   });
 
   it('returns errors in a unified format', async () => {
-    // Ошибка guard'а без поля error в исходном теле Nest
+    // Guard error: Nest's original body has no error field
     const response = await request(app.getHttpServer())
       .get('/users/me')
       .expect(401);

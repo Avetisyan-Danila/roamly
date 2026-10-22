@@ -94,7 +94,7 @@ describe('Storage deletion (e2e)', () => {
       }),
     ).toBeNull();
 
-    // Обе связанные записи удалены через Cascade
+    // Both related records are deleted via Cascade
     expect(
       await prisma.propertyPhoto.findUnique({
         where: { id: photo.id },
@@ -107,7 +107,7 @@ describe('Storage deletion (e2e)', () => {
       }),
     ).toBeNull();
 
-    // Но задания на физическое удаление файлов сохранились
+    // But the tasks for physically deleting files remain
     const tasks = await prisma.storageDeletionTask.findMany();
 
     expect(tasks).toHaveLength(2);
@@ -118,7 +118,7 @@ describe('Storage deletion (e2e)', () => {
     expect(photoTask).toBeDefined();
     expect(pendingTask).toBeDefined();
 
-    // Постоянную фотографию разрешено удалять сразу
+    // A permanent photo may be deleted immediately
     expect(photoTask!.availableAt.getTime()).toBeGreaterThanOrEqual(
       beforeDelete.getTime(),
     );
@@ -127,7 +127,7 @@ describe('Storage deletion (e2e)', () => {
       afterDelete.getTime(),
     );
 
-    // Временный файл - после expiresAt + 10 минут
+    // A temporary file: after expiresAt + 10 minutes
     expect(pendingTask!.availableAt).toEqual(
       new Date(expiresAt.getTime() + 10 * 60 * 1000),
     );
@@ -149,7 +149,7 @@ describe('Storage deletion (e2e)', () => {
       },
     });
 
-    // Заранее создаем задание с тем же storageKey
+    // Create a task with the same storageKey in advance
     await prisma.storageDeletionTask.create({
       data: {
         storageKey,
@@ -157,7 +157,7 @@ describe('Storage deletion (e2e)', () => {
       },
     });
 
-    // Скрываем ожидаемый ERROR от NestJS
+    // Suppress the expected ERROR from NestJS
     const errorLogSpy = vi
       .spyOn(Logger.prototype, 'error')
       .mockImplementation(() => undefined);
@@ -183,7 +183,7 @@ describe('Storage deletion (e2e)', () => {
 
     expect(savedPhoto).not.toBeNull();
 
-    // Существующее задание не должно исчезнуть
+    // The existing task must not disappear
     const tasks = await prisma.storageDeletionTask.findMany({
       where: { storageKey },
     });
@@ -203,7 +203,7 @@ describe('Storage deletion (e2e)', () => {
 
     expect(storedPhoto.buffer.equals(webp)).toBe(true);
 
-    // Задание, которое уже можно выполнять
+    // A task that is already due
     const task = await prisma.storageDeletionTask.create({
       data: {
         storageKey,
@@ -242,7 +242,7 @@ describe('Storage deletion (e2e)', () => {
       },
     });
 
-    // Имитируем недоступность S3 только при первой попытке
+    // Simulate S3 being unavailable only on the first attempt
     const deleteSpy = vi
       .spyOn(storage, 'deleteObject')
       .mockRejectedValueOnce(new Error('S3 temporarily unavailable'));
@@ -278,7 +278,7 @@ describe('Storage deletion (e2e)', () => {
       where: { id: task.id },
     });
 
-    // Повторная попытка назначена примерно через 10 минут
+    // The retry is scheduled in about 10 minutes
     expect(pendingTask.availableAt.getTime()).toBeGreaterThanOrEqual(
       beforeRun + 10 * 60 * 1000,
     );
@@ -291,13 +291,13 @@ describe('Storage deletion (e2e)', () => {
 
     expect(storedPhoto.buffer.equals(webp)).toBe(true);
 
-    // Пока время повторной попытки не наступило, задание не выполняется
+    // The task does not run until the retry time comes
     expect(await deletionTaskService.processDueTasks()).toEqual({
       deleted: 0,
       failed: 0,
     });
 
-    // Имитируем наступление времени повторной попытки
+    // Simulate the retry time coming
     await prisma.storageDeletionTask.update({
       where: { id: task.id },
       data: {

@@ -73,7 +73,7 @@ describe('Property photo cleanup (e2e)', () => {
 
     expect(storedPhoto.buffer.equals(jpeg)).toBe(true);
 
-    // Загрузка просрочена дольше защитного периода
+    // Upload expired longer ago than the grace period
     await prisma.propertyPhotoUpload.update({
       where: { id: upload.id },
       data: {
@@ -116,7 +116,7 @@ describe('Property photo cleanup (e2e)', () => {
       },
     });
 
-    // Имитируем ошибку SeaweedFS при удалении объекта
+    // Simulate a SeaweedFS error when deleting the object
     const deleteSpy = vi
       .spyOn(storage, 'deleteObject')
       .mockRejectedValueOnce(new Error('S3 temporarily unavailable'));
@@ -150,7 +150,7 @@ describe('Property photo cleanup (e2e)', () => {
 
     expect(pending).not.toBeNull();
 
-    // Повторяем очистку, теперь SeaweedFS доступен
+    // Retry the cleanup, SeaweedFS is available now
     const retryResult = await cleanupService.cleanupExpiredUploads();
 
     expect(retryResult).toEqual({
@@ -187,7 +187,7 @@ describe('Property photo cleanup (e2e)', () => {
       1024,
     );
 
-    // Загрузка просрочена 5 минут назад
+    // Upload expired 5 minutes ago
     await prisma.propertyPhotoUpload.update({
       where: { id: upload.id },
       data: {

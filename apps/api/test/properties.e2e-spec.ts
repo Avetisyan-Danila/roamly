@@ -234,7 +234,7 @@ describe('Properties (e2e)', () => {
         .set(CSRF_HEADER, CSRF_HEADER_VALUE)
         .expect(403);
 
-      // Убеждаемся, что чужой пользователь не удалил объявление.
+      // Make sure another user did not delete the listing
       await ownerAgent.get(`/properties/drafts/${propertyId}`).expect(200);
     });
 
@@ -251,7 +251,7 @@ describe('Properties (e2e)', () => {
         .set(CSRF_HEADER, CSRF_HEADER_VALUE)
         .expect(204);
 
-      // После удаления черновик больше не существует.
+      // The draft no longer exists after deletion
       await ownerAgent.get(`/properties/drafts/${propertyId}`).expect(404);
     });
   });
@@ -293,7 +293,7 @@ describe('Properties (e2e)', () => {
 
       const propertyId = await createFilledDraft(agent);
 
-      // Подготавливаем одну подтверждённую фотографию
+      // Prepare one confirmed photo
       const [photo] = await seedPropertyPhotos(prisma, propertyId, 1);
 
       const response = await agent
@@ -308,7 +308,7 @@ describe('Properties (e2e)', () => {
         pricePerNight: validPropertyData.pricePerNight,
       });
 
-      // Объявление и его фотографии доступны публично
+      // The listing and its photos are publicly available
       const publicResponse = await request(app.getHttpServer())
         .get(`/properties/${propertyId}`)
         .expect(200);
@@ -321,7 +321,7 @@ describe('Properties (e2e)', () => {
         },
       ]);
 
-      // Повторная публикация запрещена
+      // Publishing again is forbidden
       await agent
         .post(`/properties/${propertyId}/publish`)
         .set(CSRF_HEADER, CSRF_HEADER_VALUE)
