@@ -8,6 +8,7 @@ One file per problem that was reproduced or observed: what happened, why, and ho
 |---|---|---|
 | [001](001-pending-object-left-after-confirm.md) | Pending object left in storage after confirm | Code review |
 | [002](002-upload-allowed-at-photo-limit.md) | Upload allowed when the photo limit is reached | E2E |
+| [003](003-prerender-fails-without-api-url.md) | Build fails without API_URL while prerendering /profile | CI |
 
 ## Template
 
