@@ -3,7 +3,8 @@
 	"private": true,
 	"scripts": {
 		"dev:web": "pnpm --filter web dev",
-		"dev:api": "pnpm --filter api start:dev"
+		"dev:api": "pnpm --filter api start:dev",
+		"api:generate": "pnpm --filter api openapi:generate && pnpm --filter web api:types"
 	},
 	"packageManager": "pnpm@12.5.1"
 }

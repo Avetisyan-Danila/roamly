@@ -1,20 +1,3 @@
-import type { CreatePropertyFormValues } from "../model/create-property.schema"
+import type { ApiSchema } from "@/shared/api/api-schema"
 
-export type CreatePropertyRequest = Pick<
-	CreatePropertyFormValues,
-	| "title"
-	| "description"
-	| "country"
-	| "city"
-	| "address"
-	| "latitude"
-	| "longitude"
-	| "currency"
-	| "maxGuests"
-	| "bedrooms"
-	| "beds"
-	| "bathrooms"
-	| "amenityIds"
-> & {
-	pricePerNight: string
-}
+export type CreatePropertyRequest = ApiSchema<"UpdatePropertyDto">

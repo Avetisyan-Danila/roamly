@@ -1,6 +1,3 @@
-export type User = {
-	id: string
-	email: string
-	firstName: string
-	lastName: string
-}
+import type { ApiSchema } from "@/shared/api/api-schema"
+
+export type User = ApiSchema<"UserResponseDto">

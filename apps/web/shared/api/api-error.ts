@@ -1,7 +1,11 @@
+import type { ApiSchema } from "./api-schema"
+
+export type ApiErrorResponse = ApiSchema<"ErrorResponseDto">
+
 export class ApiError extends Error {
 	constructor(
 		public readonly status: number,
-		public readonly data: unknown,
+		public readonly data: ApiErrorResponse | null,
 	) {
 		super(`API request failed with status ${status}`)
 
@@ -9,9 +13,12 @@ export class ApiError extends Error {
 	}
 }
 
-export async function parseErrorResponse(response: Response): Promise<unknown> {
+// Trusts that error JSON comes from our API in the ErrorResponseDto shape
+export async function parseErrorResponse(
+	response: Response,
+): Promise<ApiErrorResponse | null> {
 	try {
-		return await response.json()
+		return (await response.json()) as ApiErrorResponse
 	} catch {
 		return null
 	}
