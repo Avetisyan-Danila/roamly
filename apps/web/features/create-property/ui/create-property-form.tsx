@@ -15,7 +15,11 @@ import {
 } from "../model/property-form-steps"
 import { mapUpdateDraftRequest } from "../model/map-update-draft-request"
 import { getDraftSaveErrorMessage } from "../model/get-draft-save-error-message"
-import { createDraft } from "../api/create-draft"
+import {
+	DEFAULT_FORM_VALUES,
+	mapDraftToFormValues,
+} from "../model/map-draft-to-form-values"
+import { createDraft, type DraftProperty } from "../api/create-draft"
 import { updateDraft } from "../api/update-draft"
 import { BasicInformationStep } from "./steps/basic-information-step"
 import { LocationStep } from "./steps/location-step"
@@ -38,10 +42,14 @@ const STEP_COMPONENTS = {
 	preview: PreviewStep,
 } satisfies Record<PropertyFormStepId, ComponentType>
 
-export function CreatePropertyForm() {
+type CreatePropertyFormProps = {
+	initialDraft: DraftProperty | null
+}
+
+export function CreatePropertyForm({ initialDraft }: CreatePropertyFormProps) {
 	const [currentStep, setCurrentStep] = useState(0)
 
-	const [draftId, setDraftId] = useState<string | null>(null)
+	const [draftId, setDraftId] = useState(initialDraft?.id ?? null)
 
 	const [isSaving, setIsSaving] = useState(false)
 
@@ -81,32 +89,9 @@ export function CreatePropertyForm() {
 
 	const form = useForm<CreatePropertyFormValues>({
 		resolver: zodResolver(createPropertySchema),
-		defaultValues: {
-			// Basic information
-			title: "",
-			description: "",
-			maxGuests: 1,
-			bedrooms: 1,
-			beds: 1,
-			bathrooms: 1,
-
-			// Location
-			country: "",
-			city: "",
-			address: "",
-			latitude: 0,
-			longitude: 0,
-
-			// Amenities
-			amenityIds: [],
-
-			// Photos
-			photoFiles: [],
-
-			// Pricing
-			pricePerNight: 100,
-			currency: "EUR",
-		},
+		defaultValues: initialDraft
+			? mapDraftToFormValues(initialDraft)
+			: DEFAULT_FORM_VALUES,
 	})
 
 	const currentStepConfig = PROPERTY_FORM_STEPS[currentStep]
@@ -132,10 +117,17 @@ export function CreatePropertyForm() {
 		}
 
 		try {
-			const id = draftId ?? (await createDraft()).id
+			let id = draftId
 
-			// Saved before PATCH so a retry after its failure reuses this draft
-			setDraftId(id)
+			if (!id) {
+				id = (await createDraft()).id
+
+				// Saved before PATCH so a retry after its failure reuses this draft
+				setDraftId(id)
+
+				// Lets a reload restore the draft; Next syncs this without a server request
+				window.history.replaceState(null, "", `?draftId=${id}`)
+			}
 
 			await updateDraft(id, request)
 
