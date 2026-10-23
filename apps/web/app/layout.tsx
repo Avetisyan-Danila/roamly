@@ -4,7 +4,7 @@ import "./globals.css"
 import type { Metadata } from "next"
 
 const geistSans = Geist({
-	variable: "--font-geist-sans",
+	variable: "--font-sans",
 	subsets: ["latin"],
 })
 
