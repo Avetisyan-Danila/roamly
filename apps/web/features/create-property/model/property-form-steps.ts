@@ -1,6 +1,9 @@
 import type { FieldPath } from "react-hook-form"
 
-import type { CreatePropertyFormValues } from "./create-property.schema"
+import {
+	createPropertySchema,
+	type CreatePropertyFormValues,
+} from "./create-property.schema"
 
 type PropertyFormStep = {
 	id: string
@@ -21,7 +24,7 @@ export const PROPERTY_FORM_STEPS = [
 	},
 	{
 		id: "location",
-		fields: ["country", "city", "address"],
+		fields: ["country", "city", "address", "latitude", "longitude"],
 	},
 	{
 		id: "amenities",
@@ -42,3 +45,15 @@ export const PROPERTY_FORM_STEPS = [
 ] as const satisfies readonly PropertyFormStep[]
 
 export type PropertyFormStepId = (typeof PROPERTY_FORM_STEPS)[number]["id"]
+
+export function parseStepValues(
+	values: CreatePropertyFormValues,
+	fields: readonly (keyof CreatePropertyFormValues)[],
+): Partial<CreatePropertyFormValues> {
+	const stepValues = Object.fromEntries(
+		fields.map(field => [field, values[field]]),
+	)
+
+	// RHF stores raw input; parsing applies schema transforms such as trim
+	return createPropertySchema.partial().parse(stepValues)
+}

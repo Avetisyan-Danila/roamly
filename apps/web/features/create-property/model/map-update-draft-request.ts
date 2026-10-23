@@ -1,9 +1,10 @@
-import type { CreatePropertyRequest } from "../api/create-property.types"
+import type { UpdateDraftRequest } from "../api/update-draft"
 import type { CreatePropertyFormValues } from "./create-property.schema"
 
-export function mapCreatePropertyRequest(
-	values: CreatePropertyFormValues,
-): CreatePropertyRequest {
+// Fields left undefined are dropped by JSON.stringify and stay unchanged in the draft
+export function mapUpdateDraftRequest(
+	values: Partial<CreatePropertyFormValues>,
+): UpdateDraftRequest {
 	return {
 		title: values.title,
 		description: values.description,
@@ -14,7 +15,7 @@ export function mapCreatePropertyRequest(
 		latitude: values.latitude,
 		longitude: values.longitude,
 
-		pricePerNight: values.pricePerNight.toFixed(2),
+		pricePerNight: values.pricePerNight?.toFixed(2),
 		currency: values.currency,
 
 		maxGuests: values.maxGuests,

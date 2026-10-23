@@ -10,9 +10,13 @@ import {
 } from "../model/create-property.schema"
 import {
 	PROPERTY_FORM_STEPS,
+	parseStepValues,
 	type PropertyFormStepId,
 } from "../model/property-form-steps"
-import { mapCreatePropertyRequest } from "../model/map-create-property-request"
+import { mapUpdateDraftRequest } from "../model/map-update-draft-request"
+import { getDraftSaveErrorMessage } from "../model/get-draft-save-error-message"
+import { createDraft } from "../api/create-draft"
+import { updateDraft } from "../api/update-draft"
 import { BasicInformationStep } from "./steps/basic-information-step"
 import { LocationStep } from "./steps/location-step"
 import { AmenitiesStep } from "./steps/amenities-step"
@@ -36,6 +40,10 @@ const STEP_COMPONENTS = {
 
 export function CreatePropertyForm() {
 	const [currentStep, setCurrentStep] = useState(0)
+
+	const [draftId, setDraftId] = useState<string | null>(null)
+
+	const [isSaving, setIsSaving] = useState(false)
 
 	const [amenitiesState, setAmenitiesState] = useState<AmenitiesState>({
 		status: "loading",
@@ -105,26 +113,70 @@ export function CreatePropertyForm() {
 
 	const CurrentStepComponent = STEP_COMPONENTS[currentStepConfig.id]
 
+	const saveCurrentStep = async (): Promise<boolean> => {
+		const { fields } = currentStepConfig
+
+		const isValid = await form.trigger([...fields])
+
+		if (!isValid) {
+			return false
+		}
+
+		const request = mapUpdateDraftRequest(
+			parseStepValues(form.getValues(), fields),
+		)
+
+		// Photos step has no draft fields, and the API rejects an empty PATCH
+		if (Object.values(request).every(value => value === undefined)) {
+			return true
+		}
+
+		try {
+			const id = draftId ?? (await createDraft()).id
+
+			// Saved before PATCH so a retry after its failure reuses this draft
+			setDraftId(id)
+
+			await updateDraft(id, request)
+
+			return true
+		} catch (error) {
+			form.setError("root.server", {
+				message: getDraftSaveErrorMessage(error),
+			})
+
+			return false
+		}
+	}
+
 	const handleNext = async (event: MouseEvent<HTMLButtonElement>) => {
 		event.preventDefault()
 
-		const isValid = await form.trigger([...currentStepConfig.fields])
+		form.clearErrors("root")
+		setIsSaving(true)
 
-		if (!isValid) {
-			return
+		try {
+			const isSaved = await saveCurrentStep()
+
+			if (isSaved) {
+				setCurrentStep(step =>
+					Math.min(step + 1, PROPERTY_FORM_STEPS.length - 1),
+				)
+			}
+		} finally {
+			setIsSaving(false)
 		}
-
-		setCurrentStep(step => Math.min(step + 1, PROPERTY_FORM_STEPS.length - 1))
 	}
 
 	const handleBack = () => {
+		form.clearErrors("root")
 		setCurrentStep(step => Math.max(step - 1, 0))
 	}
 
 	const isPreviewStep = currentStepConfig.id === "preview"
 
 	const handlePublish = (values: CreatePropertyFormValues) => {
-		const request = mapCreatePropertyRequest(values)
+		const request = mapUpdateDraftRequest(values)
 
 		console.log("Create property request:", request)
 		console.log("Photo files:", values.photoFiles)
@@ -140,6 +192,10 @@ export function CreatePropertyForm() {
 			>
 				<form onSubmit={form.handleSubmit(handlePublish)}>
 					<CurrentStepComponent />
+
+					{form.formState.errors.root?.server && (
+						<p>{form.formState.errors.root.server.message}</p>
+					)}
 
 					<div>
 						{currentStep > 0 && (
@@ -158,11 +214,12 @@ export function CreatePropertyForm() {
 								type="button"
 								onClick={handleNext}
 								disabled={
-									currentStepConfig.id === "amenities" &&
-									amenitiesState.status !== "success"
+									isSaving ||
+									(currentStepConfig.id === "amenities" &&
+										amenitiesState.status !== "success")
 								}
 							>
-								Next
+								{isSaving ? "Saving..." : "Next"}
 							</button>
 						)}
 					</div>
