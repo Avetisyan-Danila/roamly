@@ -31,23 +31,23 @@ export const createPropertySchema = z.object({
 		.max(5000, "Description must be 5000 characters or less"),
 
 	maxGuests: z
-		.number()
+		.number("Max guests is required")
 		.int("Max guests must be a whole number")
 		.min(1, "At least 1 guest is required"),
 
 	bedrooms: z
-		.number()
+		.number("Bedrooms is required")
 		.int("Bedrooms must be a whole number")
 		.min(0, "Bedrooms cannot be negative"),
 
 	beds: z
-		.number()
+		.number("Beds is required")
 		.int("Beds must be a whole number")
 		.min(1, "At least 1 bed is required"),
 
 	bathrooms: z
-		.number()
-		.min(0.5)
+		.number("Bathrooms is required")
+		.min(0.5, "At least 0.5 bathroom is required")
 		.refine(
 			value => Number.isInteger(value * 10),
 			"Bathrooms can have at most 1 decimal place",
@@ -86,7 +86,7 @@ export const createPropertySchema = z.object({
 
 	// Pricing
 	pricePerNight: z
-		.number()
+		.number("Price is required")
 		.positive("Price must be greater than 0")
 		.max(100_000, "Price is too high"),
 
