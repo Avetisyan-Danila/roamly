@@ -1,9 +1,14 @@
 "use client"
 
+import { zodResolver } from "@hookform/resolvers/zod"
 import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { Controller, useForm } from "react-hook-form"
 
 import { register } from "../api/register"
+import {
+	registerSchema,
+	type RegisterFormValues,
+} from "../model/register.schema"
 import { ApiError } from "@/shared/api/browser"
 import { Button } from "@/shared/ui/button"
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/shared/ui/field"
@@ -12,105 +17,125 @@ import { Input } from "@/shared/ui/input"
 export function RegisterForm() {
 	const router = useRouter()
 
-	const [email, setEmail] = useState("")
-	const [password, setPassword] = useState("")
-	const [firstName, setFirstName] = useState("")
-	const [lastName, setLastName] = useState("")
+	const form = useForm<RegisterFormValues>({
+		resolver: zodResolver(registerSchema),
+		defaultValues: {
+			firstName: "",
+			lastName: "",
+			email: "",
+			password: "",
+		},
+	})
 
-	const [error, setError] = useState<string | null>(null)
-	const [isPending, setIsPending] = useState(false)
-
-	async function handleSubmit(event: React.SubmitEvent<HTMLFormElement>) {
-		event.preventDefault()
-
-		setError(null)
-		setIsPending(true)
-
+	async function handleRegister(values: RegisterFormValues) {
 		try {
-			await register({
-				email,
-				password,
-				firstName,
-				lastName,
-			})
+			await register(values)
 
 			router.push("/login")
 		} catch (error) {
 			if (error instanceof ApiError) {
 				if (error.status === 409) {
-					setError("Email is already in use")
+					form.setError("email", { message: "Email is already in use" })
 					return
 				}
 
-				setError("Registration failed")
+				form.setError("root.server", { message: "Registration failed" })
 				return
 			}
 
-			setError("Something went wrong")
-		} finally {
-			setIsPending(false)
+			form.setError("root.server", { message: "Something went wrong" })
 		}
 	}
 
+	const { isSubmitting } = form.formState
+
 	return (
-		<form onSubmit={handleSubmit}>
+		<form onSubmit={form.handleSubmit(handleRegister)} noValidate>
 			<FieldGroup>
 				<div className="grid grid-cols-2 gap-5">
-					<Field>
-						<FieldLabel htmlFor="firstName">First name</FieldLabel>
+					<Controller
+						name="firstName"
+						control={form.control}
+						render={({ field, fieldState }) => (
+							<Field data-invalid={fieldState.invalid}>
+								<FieldLabel htmlFor={field.name}>First name</FieldLabel>
 
-						<Input
-							id="firstName"
-							autoComplete="given-name"
-							value={firstName}
-							onChange={event => setFirstName(event.target.value)}
-							required
-						/>
-					</Field>
+								<Input
+									{...field}
+									id={field.name}
+									autoComplete="given-name"
+									aria-invalid={fieldState.invalid}
+								/>
 
-					<Field>
-						<FieldLabel htmlFor="lastName">Last name</FieldLabel>
+								<FieldError errors={[fieldState.error]} />
+							</Field>
+						)}
+					/>
 
-						<Input
-							id="lastName"
-							autoComplete="family-name"
-							value={lastName}
-							onChange={event => setLastName(event.target.value)}
-							required
-						/>
-					</Field>
+					<Controller
+						name="lastName"
+						control={form.control}
+						render={({ field, fieldState }) => (
+							<Field data-invalid={fieldState.invalid}>
+								<FieldLabel htmlFor={field.name}>Last name</FieldLabel>
+
+								<Input
+									{...field}
+									id={field.name}
+									autoComplete="family-name"
+									aria-invalid={fieldState.invalid}
+								/>
+
+								<FieldError errors={[fieldState.error]} />
+							</Field>
+						)}
+					/>
 				</div>
 
-				<Field>
-					<FieldLabel htmlFor="email">Email</FieldLabel>
+				<Controller
+					name="email"
+					control={form.control}
+					render={({ field, fieldState }) => (
+						<Field data-invalid={fieldState.invalid}>
+							<FieldLabel htmlFor={field.name}>Email</FieldLabel>
 
-					<Input
-						id="email"
-						type="email"
-						autoComplete="email"
-						value={email}
-						onChange={event => setEmail(event.target.value)}
-						required
-					/>
-				</Field>
+							<Input
+								{...field}
+								id={field.name}
+								type="email"
+								autoComplete="email"
+								aria-invalid={fieldState.invalid}
+							/>
 
-				<Field>
-					<FieldLabel htmlFor="password">Password</FieldLabel>
+							<FieldError errors={[fieldState.error]} />
+						</Field>
+					)}
+				/>
 
-					<Input
-						id="password"
-						type="password"
-						autoComplete="new-password"
-						value={password}
-						onChange={event => setPassword(event.target.value)}
-						required
-					/>
-				</Field>
+				<Controller
+					name="password"
+					control={form.control}
+					render={({ field, fieldState }) => (
+						<Field data-invalid={fieldState.invalid}>
+							<FieldLabel htmlFor={field.name}>Password</FieldLabel>
 
-				<FieldError>{error}</FieldError>
+							<Input
+								{...field}
+								id={field.name}
+								type="password"
+								autoComplete="new-password"
+								aria-invalid={fieldState.invalid}
+							/>
 
-				<Button type="submit" disabled={isPending}>
-					{isPending ? "Creating account..." : "Register"}
+							<FieldError errors={[fieldState.error]} />
+						</Field>
+					)}
+				/>
+
+				<FieldError errors={[form.formState.errors.root?.server]} />
+
+				<Button type="submit" disabled={isSubmitting}>
+					{isSubmitting ? "Creating account..." : "Register"}
 				</Button>
 			</FieldGroup>
 		</form>

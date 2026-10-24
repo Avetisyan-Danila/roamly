@@ -1,9 +1,11 @@
 "use client"
 
+import { zodResolver } from "@hookform/resolvers/zod"
 import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { Controller, useForm } from "react-hook-form"
 
 import { login } from "../api/login"
+import { loginSchema, type LoginFormValues } from "../model/login.schema"
 import { ApiError } from "@/shared/api/browser"
 import { Button } from "@/shared/ui/button"
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/shared/ui/field"
@@ -12,67 +14,78 @@ import { Input } from "@/shared/ui/input"
 export function LoginForm() {
 	const router = useRouter()
 
-	const [email, setEmail] = useState("")
-	const [password, setPassword] = useState("")
-	const [error, setError] = useState<string | null>(null)
-	const [isPending, setIsPending] = useState(false)
+	const form = useForm<LoginFormValues>({
+		resolver: zodResolver(loginSchema),
+		defaultValues: {
+			email: "",
+			password: "",
+		},
+	})
 
-	async function handleSubmit(event: React.SubmitEvent<HTMLFormElement>) {
-		event.preventDefault()
-
-		setError(null)
-		setIsPending(true)
-
+	async function handleLogin(values: LoginFormValues) {
 		try {
-			await login({
-				email,
-				password,
-			})
+			await login(values)
 
 			router.push("/profile")
 		} catch (error) {
 			if (error instanceof ApiError) {
-				setError("Invalid email or password")
+				form.setError("root.server", { message: "Invalid email or password" })
 				return
 			}
 
-			setError("Something went wrong")
-		} finally {
-			setIsPending(false)
+			form.setError("root.server", { message: "Something went wrong" })
 		}
 	}
 
+	const { isSubmitting } = form.formState
+
 	return (
-		<form onSubmit={handleSubmit}>
+		<form onSubmit={form.handleSubmit(handleLogin)} noValidate>
 			<FieldGroup>
-				<Field>
-					<FieldLabel htmlFor="email">Email</FieldLabel>
+				<Controller
+					name="email"
+					control={form.control}
+					render={({ field, fieldState }) => (
+						<Field data-invalid={fieldState.invalid}>
+							<FieldLabel htmlFor={field.name}>Email</FieldLabel>
 
-					<Input
-						id="email"
-						type="email"
-						autoComplete="email"
-						value={email}
-						onChange={event => setEmail(event.target.value)}
-					/>
-				</Field>
+							<Input
+								{...field}
+								id={field.name}
+								type="email"
+								autoComplete="email"
+								aria-invalid={fieldState.invalid}
+							/>
 
-				<Field>
-					<FieldLabel htmlFor="password">Password</FieldLabel>
+							<FieldError errors={[fieldState.error]} />
+						</Field>
+					)}
+				/>
 
-					<Input
-						id="password"
-						type="password"
-						autoComplete="current-password"
-						value={password}
-						onChange={event => setPassword(event.target.value)}
-					/>
-				</Field>
+				<Controller
+					name="password"
+					control={form.control}
+					render={({ field, fieldState }) => (
+						<Field data-invalid={fieldState.invalid}>
+							<FieldLabel htmlFor={field.name}>Password</FieldLabel>
 
-				<FieldError>{error}</FieldError>
+							<Input
+								{...field}
+								id={field.name}
+								type="password"
+								autoComplete="current-password"
+								aria-invalid={fieldState.invalid}
+							/>
 
-				<Button type="submit" disabled={isPending}>
-					{isPending ? "Logging in..." : "Login"}
+							<FieldError errors={[fieldState.error]} />
+						</Field>
+					)}
+				/>
+
+				<FieldError errors={[form.formState.errors.root?.server]} />
+
+				<Button type="submit" disabled={isSubmitting}>
+					{isSubmitting ? "Logging in..." : "Login"}
 				</Button>
 			</FieldGroup>
 		</form>
