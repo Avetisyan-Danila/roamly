@@ -1,91 +1,132 @@
 "use client"
 
-import { useFormContext } from "react-hook-form"
+import { Controller, useFormContext } from "react-hook-form"
 
 import type { CreatePropertyFormValues } from "../../model/create-property.schema"
+import { NumberInput } from "../number-input"
+import { Field, FieldError, FieldGroup, FieldLabel } from "@/shared/ui/field"
+import { Input } from "@/shared/ui/input"
+import { Textarea } from "@/shared/ui/textarea"
 
 export function BasicInformationStep() {
-	const {
-		register,
-		formState: { errors },
-	} = useFormContext<CreatePropertyFormValues>()
+	const { control } = useFormContext<CreatePropertyFormValues>()
 
 	return (
-		<section>
-			<h2>Basic information</h2>
+		<section className="flex flex-col gap-4">
+			<h2 className="text-lg font-semibold">Basic information</h2>
 
-			<div>
-				<label htmlFor="title">Title</label>
+			<FieldGroup>
+				<Controller
+					name="title"
+					control={control}
+					render={({ field, fieldState }) => (
+						<Field data-invalid={fieldState.invalid}>
+							<FieldLabel htmlFor={field.name}>Title</FieldLabel>
 
-				<input id="title" type="text" {...register("title")} />
+							<Input
+								{...field}
+								id={field.name}
+								aria-invalid={fieldState.invalid}
+							/>
 
-				{errors.title && <p>{errors.title.message}</p>}
-			</div>
-
-			<div>
-				<label htmlFor="description">Description</label>
-
-				<textarea id="description" {...register("description")} />
-
-				{errors.description && <p>{errors.description.message}</p>}
-			</div>
-
-			<div>
-				<label htmlFor="maxGuests">Max guests</label>
-
-				<input
-					id="maxGuests"
-					type="number"
-					{...register("maxGuests", {
-						valueAsNumber: true,
-					})}
+							<FieldError errors={[fieldState.error]} />
+						</Field>
+					)}
 				/>
 
-				{errors.maxGuests && <p>{errors.maxGuests.message}</p>}
-			</div>
+				<Controller
+					name="description"
+					control={control}
+					render={({ field, fieldState }) => (
+						<Field data-invalid={fieldState.invalid}>
+							<FieldLabel htmlFor={field.name}>Description</FieldLabel>
 
-			<div>
-				<label htmlFor="bedrooms">Bedrooms</label>
+							<Textarea
+								{...field}
+								id={field.name}
+								aria-invalid={fieldState.invalid}
+							/>
 
-				<input
-					id="bedrooms"
-					type="number"
-					{...register("bedrooms", {
-						valueAsNumber: true,
-					})}
+							<FieldError errors={[fieldState.error]} />
+						</Field>
+					)}
 				/>
 
-				{errors.bedrooms && <p>{errors.bedrooms.message}</p>}
-			</div>
+				<div className="grid grid-cols-2 gap-5">
+					<Controller
+						name="maxGuests"
+						control={control}
+						render={({ field, fieldState }) => (
+							<Field data-invalid={fieldState.invalid}>
+								<FieldLabel htmlFor={field.name}>Max guests</FieldLabel>
 
-			<div>
-				<label htmlFor="beds">Beds</label>
+								<NumberInput
+									{...field}
+									id={field.name}
+									aria-invalid={fieldState.invalid}
+								/>
 
-				<input
-					id="beds"
-					type="number"
-					{...register("beds", {
-						valueAsNumber: true,
-					})}
-				/>
+								<FieldError errors={[fieldState.error]} />
+							</Field>
+						)}
+					/>
 
-				{errors.beds && <p>{errors.beds.message}</p>}
-			</div>
+					<Controller
+						name="bedrooms"
+						control={control}
+						render={({ field, fieldState }) => (
+							<Field data-invalid={fieldState.invalid}>
+								<FieldLabel htmlFor={field.name}>Bedrooms</FieldLabel>
 
-			<div>
-				<label htmlFor="bathrooms">Bathrooms</label>
+								<NumberInput
+									{...field}
+									id={field.name}
+									aria-invalid={fieldState.invalid}
+								/>
 
-				<input
-					id="bathrooms"
-					type="number"
-					step="0.5"
-					{...register("bathrooms", {
-						valueAsNumber: true,
-					})}
-				/>
+								<FieldError errors={[fieldState.error]} />
+							</Field>
+						)}
+					/>
 
-				{errors.bathrooms && <p>{errors.bathrooms.message}</p>}
-			</div>
+					<Controller
+						name="beds"
+						control={control}
+						render={({ field, fieldState }) => (
+							<Field data-invalid={fieldState.invalid}>
+								<FieldLabel htmlFor={field.name}>Beds</FieldLabel>
+
+								<NumberInput
+									{...field}
+									id={field.name}
+									aria-invalid={fieldState.invalid}
+								/>
+
+								<FieldError errors={[fieldState.error]} />
+							</Field>
+						)}
+					/>
+
+					<Controller
+						name="bathrooms"
+						control={control}
+						render={({ field, fieldState }) => (
+							<Field data-invalid={fieldState.invalid}>
+								<FieldLabel htmlFor={field.name}>Bathrooms</FieldLabel>
+
+								<NumberInput
+									{...field}
+									id={field.name}
+									step="0.5"
+									aria-invalid={fieldState.invalid}
+								/>
+
+								<FieldError errors={[fieldState.error]} />
+							</Field>
+						)}
+					/>
+				</div>
+			</FieldGroup>
 		</section>
 	)
 }

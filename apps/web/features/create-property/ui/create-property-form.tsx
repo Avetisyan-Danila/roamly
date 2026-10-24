@@ -28,6 +28,9 @@ import { PhotosStep } from "./steps/photos-step"
 import { PricingStep } from "./steps/pricing-step"
 import { PreviewStep } from "./steps/preview-step"
 import { getAmenities } from "@/entities/amenity/api/get-amenities"
+import { Button } from "@/shared/ui/button"
+import { Card, CardContent, CardFooter } from "@/shared/ui/card"
+import { FieldError } from "@/shared/ui/field"
 import {
 	AmenitiesCatalogContext,
 	AmenitiesState,
@@ -183,38 +186,41 @@ export function CreatePropertyForm({ initialDraft }: CreatePropertyFormProps) {
 				}}
 			>
 				<form onSubmit={form.handleSubmit(handlePublish)}>
-					<CurrentStepComponent />
+					<Card>
+						<CardContent className="flex flex-col gap-4">
+							<CurrentStepComponent />
 
-					{form.formState.errors.root?.server && (
-						<p>{form.formState.errors.root.server.message}</p>
-					)}
+							<FieldError errors={[form.formState.errors.root?.server]} />
+						</CardContent>
 
-					<div>
-						{currentStep > 0 && (
-							<button type="button" onClick={handleBack}>
-								Back
-							</button>
-						)}
+						<CardFooter className="justify-between">
+							{currentStep > 0 && (
+								<Button type="button" variant="outline" onClick={handleBack}>
+									Back
+								</Button>
+							)}
 
-						{isPreviewStep ? (
-							<button key="publish" type="submit">
-								Publish
-							</button>
-						) : (
-							<button
-								key="next"
-								type="button"
-								onClick={handleNext}
-								disabled={
-									isSaving ||
-									(currentStepConfig.id === "amenities" &&
-										amenitiesState.status !== "success")
-								}
-							>
-								{isSaving ? "Saving..." : "Next"}
-							</button>
-						)}
-					</div>
+							{isPreviewStep ? (
+								<Button key="publish" type="submit" className="ml-auto">
+									Publish
+								</Button>
+							) : (
+								<Button
+									key="next"
+									type="button"
+									className="ml-auto"
+									onClick={handleNext}
+									disabled={
+										isSaving ||
+										(currentStepConfig.id === "amenities" &&
+											amenitiesState.status !== "success")
+									}
+								>
+									{isSaving ? "Saving..." : "Next"}
+								</Button>
+							)}
+						</CardFooter>
+					</Card>
 				</form>
 			</AmenitiesCatalogContext.Provider>
 		</FormProvider>

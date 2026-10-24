@@ -4,6 +4,7 @@ import { useFormContext, useWatch } from "react-hook-form"
 
 import type { CreatePropertyFormValues } from "../../model/create-property.schema"
 import { useAmenitiesCatalog } from "../amenities-catalog-context"
+import { Separator } from "@/shared/ui/separator"
 
 export function PreviewStep() {
 	const { control } = useFormContext<CreatePropertyFormValues>()
@@ -18,11 +19,11 @@ export function PreviewStep() {
 	const photoFiles = values.photoFiles ?? []
 
 	return (
-		<section>
-			<h2>Preview</h2>
+		<section className="flex flex-col gap-4">
+			<h2 className="text-lg font-semibold">Preview</h2>
 
-			<div>
-				<h3>Basic information</h3>
+			<div className="flex flex-col gap-1">
+				<h3 className="font-medium">Basic information</h3>
 
 				<p>Title: {values.title}</p>
 				<p>Description: {values.description}</p>
@@ -32,21 +33,25 @@ export function PreviewStep() {
 				<p>Bathrooms: {values.bathrooms}</p>
 			</div>
 
-			<div>
-				<h3>Location</h3>
+			<Separator />
+
+			<div className="flex flex-col gap-1">
+				<h3 className="font-medium">Location</h3>
 
 				<p>Country: {values.country}</p>
 				<p>City: {values.city}</p>
 				<p>Address: {values.address}</p>
 			</div>
 
-			<div>
-				<h3>Amenities</h3>
+			<Separator />
+
+			<div className="flex flex-col gap-1">
+				<h3 className="font-medium">Amenities</h3>
 
 				{amenityIds.length === 0 ? (
-					<p>No amenities selected</p>
+					<p className="text-muted-foreground">No amenities selected</p>
 				) : (
-					<ul>
+					<ul className="list-inside list-disc">
 						{amenityIds.map(amenityId => {
 							const amenity =
 								amenitiesState.status === "success"
@@ -59,12 +64,14 @@ export function PreviewStep() {
 				)}
 			</div>
 
-			<div>
-				<h3>Photos</h3>
+			<Separator />
+
+			<div className="flex flex-col gap-1">
+				<h3 className="font-medium">Photos</h3>
 
 				<p>{photoFiles.length} photo(s) selected</p>
 
-				<ul>
+				<ul className="list-inside list-disc">
 					{photoFiles.map(file => (
 						<li key={`${file.name}-${file.size}-${file.lastModified}`}>
 							{file.name}
@@ -73,8 +80,10 @@ export function PreviewStep() {
 				</ul>
 			</div>
 
-			<div>
-				<h3>Pricing</h3>
+			<Separator />
+
+			<div className="flex flex-col gap-1">
+				<h3 className="font-medium">Pricing</h3>
 
 				<p>
 					Price per night: {values.pricePerNight} {values.currency}

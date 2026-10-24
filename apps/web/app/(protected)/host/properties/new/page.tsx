@@ -13,8 +13,8 @@ export default async function NewPropertyPage({
 		typeof draftId === "string" ? await getDraftOrNotFound(draftId) : null
 
 	return (
-		<main>
-			<h1>Become a host</h1>
+		<main className="mx-auto flex w-full max-w-2xl flex-col gap-6 p-4">
+			<h1 className="text-2xl font-semibold">Become a host</h1>
 
 			<CreatePropertyForm initialDraft={draft} />
 		</main>

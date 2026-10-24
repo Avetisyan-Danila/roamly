@@ -5,6 +5,9 @@ import { useState } from "react"
 
 import { register } from "../api/register"
 import { ApiError } from "@/shared/api/browser"
+import { Button } from "@/shared/ui/button"
+import { Field, FieldError, FieldGroup, FieldLabel } from "@/shared/ui/field"
+import { Input } from "@/shared/ui/input"
 
 export function RegisterForm() {
 	const router = useRouter()
@@ -51,49 +54,65 @@ export function RegisterForm() {
 
 	return (
 		<form onSubmit={handleSubmit}>
-			<label>
-				First name
-				<input
-					value={firstName}
-					onChange={event => setFirstName(event.target.value)}
-					required
-				/>
-			</label>
+			<FieldGroup>
+				<div className="grid grid-cols-2 gap-5">
+					<Field>
+						<FieldLabel htmlFor="firstName">First name</FieldLabel>
 
-			<label>
-				Last name
-				<input
-					value={lastName}
-					onChange={event => setLastName(event.target.value)}
-					required
-				/>
-			</label>
+						<Input
+							id="firstName"
+							autoComplete="given-name"
+							value={firstName}
+							onChange={event => setFirstName(event.target.value)}
+							required
+						/>
+					</Field>
 
-			<label>
-				Email
-				<input
-					type="email"
-					value={email}
-					onChange={event => setEmail(event.target.value)}
-					required
-				/>
-			</label>
+					<Field>
+						<FieldLabel htmlFor="lastName">Last name</FieldLabel>
 
-			<label>
-				Password
-				<input
-					type="password"
-					value={password}
-					onChange={event => setPassword(event.target.value)}
-					required
-				/>
-			</label>
+						<Input
+							id="lastName"
+							autoComplete="family-name"
+							value={lastName}
+							onChange={event => setLastName(event.target.value)}
+							required
+						/>
+					</Field>
+				</div>
 
-			{error && <p>{error}</p>}
+				<Field>
+					<FieldLabel htmlFor="email">Email</FieldLabel>
 
-			<button type="submit" disabled={isPending}>
-				{isPending ? "Creating account..." : "Register"}
-			</button>
+					<Input
+						id="email"
+						type="email"
+						autoComplete="email"
+						value={email}
+						onChange={event => setEmail(event.target.value)}
+						required
+					/>
+				</Field>
+
+				<Field>
+					<FieldLabel htmlFor="password">Password</FieldLabel>
+
+					<Input
+						id="password"
+						type="password"
+						autoComplete="new-password"
+						value={password}
+						onChange={event => setPassword(event.target.value)}
+						required
+					/>
+				</Field>
+
+				<FieldError>{error}</FieldError>
+
+				<Button type="submit" disabled={isPending}>
+					{isPending ? "Creating account..." : "Register"}
+				</Button>
+			</FieldGroup>
 		</form>
 	)
 }

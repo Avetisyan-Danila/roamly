@@ -1,48 +1,82 @@
 "use client"
 
-import { useFormContext } from "react-hook-form"
+import { Controller, useFormContext } from "react-hook-form"
 
-import type { CreatePropertyFormValues } from "../../model/create-property.schema"
+import {
+	currencySchema,
+	type CreatePropertyFormValues,
+} from "../../model/create-property.schema"
+import { NumberInput } from "../number-input"
+import { Field, FieldError, FieldGroup, FieldLabel } from "@/shared/ui/field"
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/shared/ui/select"
 
 export function PricingStep() {
-	const {
-		register,
-		formState: { errors },
-	} = useFormContext<CreatePropertyFormValues>()
+	const { control } = useFormContext<CreatePropertyFormValues>()
 
 	return (
-		<section>
-			<h2>Pricing</h2>
+		<section className="flex flex-col gap-4">
+			<h2 className="text-lg font-semibold">Pricing</h2>
 
-			<div>
-				<label htmlFor="pricePerNight">Price per night</label>
+			<FieldGroup className="grid grid-cols-[1fr_auto]">
+				<Controller
+					name="pricePerNight"
+					control={control}
+					render={({ field, fieldState }) => (
+						<Field data-invalid={fieldState.invalid}>
+							<FieldLabel htmlFor={field.name}>Price per night</FieldLabel>
 
-				<input
-					id="pricePerNight"
-					type="number"
-					min="1"
-					step="1"
-					{...register("pricePerNight", {
-						valueAsNumber: true,
-					})}
+							<NumberInput
+								{...field}
+								id={field.name}
+								min="1"
+								step="1"
+								aria-invalid={fieldState.invalid}
+							/>
+
+							<FieldError errors={[fieldState.error]} />
+						</Field>
+					)}
 				/>
 
-				{errors.pricePerNight && <p>{errors.pricePerNight.message}</p>}
-			</div>
+				<Controller
+					name="currency"
+					control={control}
+					render={({ field, fieldState }) => (
+						<Field data-invalid={fieldState.invalid}>
+							<FieldLabel htmlFor={field.name}>Currency</FieldLabel>
 
-			<div>
-				<label htmlFor="currency">Currency</label>
+							<Select
+								name={field.name}
+								value={field.value}
+								onValueChange={field.onChange}
+							>
+								<SelectTrigger
+									id={field.name}
+									aria-invalid={fieldState.invalid}
+								>
+									<SelectValue />
+								</SelectTrigger>
 
-				<select id="currency" {...register("currency")}>
-					<option value="EUR">EUR</option>
-					<option value="USD">USD</option>
-					<option value="GBP">GBP</option>
-					<option value="AMD">AMD</option>
-					<option value="RUB">RUB</option>
-				</select>
+								<SelectContent>
+									{currencySchema.options.map(currency => (
+										<SelectItem key={currency} value={currency}>
+											{currency}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
 
-				{errors.currency && <p>{errors.currency.message}</p>}
-			</div>
+							<FieldError errors={[fieldState.error]} />
+						</Field>
+					)}
+				/>
+			</FieldGroup>
 		</section>
 	)
 }

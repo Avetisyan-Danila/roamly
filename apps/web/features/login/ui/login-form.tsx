@@ -5,6 +5,9 @@ import { useState } from "react"
 
 import { login } from "../api/login"
 import { ApiError } from "@/shared/api/browser"
+import { Button } from "@/shared/ui/button"
+import { Field, FieldError, FieldGroup, FieldLabel } from "@/shared/ui/field"
+import { Input } from "@/shared/ui/input"
 
 export function LoginForm() {
 	const router = useRouter()
@@ -41,29 +44,37 @@ export function LoginForm() {
 
 	return (
 		<form onSubmit={handleSubmit}>
-			<label>
-				Email
-				<input
-					type="email"
-					value={email}
-					onChange={event => setEmail(event.target.value)}
-				/>
-			</label>
+			<FieldGroup>
+				<Field>
+					<FieldLabel htmlFor="email">Email</FieldLabel>
 
-			<label>
-				Password
-				<input
-					type="password"
-					value={password}
-					onChange={event => setPassword(event.target.value)}
-				/>
-			</label>
+					<Input
+						id="email"
+						type="email"
+						autoComplete="email"
+						value={email}
+						onChange={event => setEmail(event.target.value)}
+					/>
+				</Field>
 
-			{error && <p>{error}</p>}
+				<Field>
+					<FieldLabel htmlFor="password">Password</FieldLabel>
 
-			<button type="submit" disabled={isPending}>
-				{isPending ? "Logging in..." : "Login"}
-			</button>
+					<Input
+						id="password"
+						type="password"
+						autoComplete="current-password"
+						value={password}
+						onChange={event => setPassword(event.target.value)}
+					/>
+				</Field>
+
+				<FieldError>{error}</FieldError>
+
+				<Button type="submit" disabled={isPending}>
+					{isPending ? "Logging in..." : "Login"}
+				</Button>
+			</FieldGroup>
 		</form>
 	)
 }

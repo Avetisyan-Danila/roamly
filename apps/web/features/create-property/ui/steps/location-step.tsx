@@ -1,42 +1,73 @@
 "use client"
 
-import { useFormContext } from "react-hook-form"
+import { Controller, useFormContext } from "react-hook-form"
 
 import type { CreatePropertyFormValues } from "../../model/create-property.schema"
+import { Field, FieldError, FieldGroup, FieldLabel } from "@/shared/ui/field"
+import { Input } from "@/shared/ui/input"
 
 export function LocationStep() {
-	const {
-		register,
-		formState: { errors },
-	} = useFormContext<CreatePropertyFormValues>()
+	const { control } = useFormContext<CreatePropertyFormValues>()
 
 	return (
-		<section>
-			<h2>Location</h2>
+		<section className="flex flex-col gap-4">
+			<h2 className="text-lg font-semibold">Location</h2>
 
-			<div>
-				<label htmlFor="country">Country</label>
+			<FieldGroup>
+				<Controller
+					name="country"
+					control={control}
+					render={({ field, fieldState }) => (
+						<Field data-invalid={fieldState.invalid}>
+							<FieldLabel htmlFor={field.name}>Country</FieldLabel>
 
-				<input id="country" type="text" {...register("country")} />
+							<Input
+								{...field}
+								id={field.name}
+								aria-invalid={fieldState.invalid}
+							/>
 
-				{errors.country && <p>{errors.country.message}</p>}
-			</div>
+							<FieldError errors={[fieldState.error]} />
+						</Field>
+					)}
+				/>
 
-			<div>
-				<label htmlFor="city">City</label>
+				<Controller
+					name="city"
+					control={control}
+					render={({ field, fieldState }) => (
+						<Field data-invalid={fieldState.invalid}>
+							<FieldLabel htmlFor={field.name}>City</FieldLabel>
 
-				<input id="city" type="text" {...register("city")} />
+							<Input
+								{...field}
+								id={field.name}
+								aria-invalid={fieldState.invalid}
+							/>
 
-				{errors.city && <p>{errors.city.message}</p>}
-			</div>
+							<FieldError errors={[fieldState.error]} />
+						</Field>
+					)}
+				/>
 
-			<div>
-				<label htmlFor="address">Address</label>
+				<Controller
+					name="address"
+					control={control}
+					render={({ field, fieldState }) => (
+						<Field data-invalid={fieldState.invalid}>
+							<FieldLabel htmlFor={field.name}>Address</FieldLabel>
 
-				<input id="address" type="text" {...register("address")} />
+							<Input
+								{...field}
+								id={field.name}
+								aria-invalid={fieldState.invalid}
+							/>
 
-				{errors.address && <p>{errors.address.message}</p>}
-			</div>
+							<FieldError errors={[fieldState.error]} />
+						</Field>
+					)}
+				/>
+			</FieldGroup>
 		</section>
 	)
 }

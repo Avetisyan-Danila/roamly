@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation"
 import { useState } from "react"
 
 import { logout } from "../api/logout"
+import { Button } from "@/shared/ui/button"
 
 export function LogoutButton() {
 	const router = useRouter()
@@ -22,8 +23,13 @@ export function LogoutButton() {
 	}
 
 	return (
-		<button type="button" onClick={handleLogout} disabled={isPending}>
+		<Button
+			type="button"
+			variant="outline"
+			onClick={handleLogout}
+			disabled={isPending}
+		>
 			{isPending ? "Logging out..." : "Logout"}
-		</button>
+		</Button>
 	)
 }

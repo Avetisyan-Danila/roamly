@@ -4,14 +4,13 @@ import { useController, useFormContext } from "react-hook-form"
 
 import type { CreatePropertyFormValues } from "../../model/create-property.schema"
 import { PhotoPreview } from "./photo-preview"
+import { Field, FieldError, FieldLabel } from "@/shared/ui/field"
+import { Input } from "@/shared/ui/input"
 
 export function PhotosStep() {
-	const {
-		control,
-		formState: { errors },
-	} = useFormContext<CreatePropertyFormValues>()
+	const { control } = useFormContext<CreatePropertyFormValues>()
 
-	const { field } = useController({
+	const { field, fieldState } = useController({
 		name: "photoFiles",
 		control,
 	})
@@ -25,33 +24,39 @@ export function PhotosStep() {
 	}
 
 	return (
-		<section>
-			<h2>Photos</h2>
+		<section className="flex flex-col gap-4">
+			<h2 className="text-lg font-semibold">Photos</h2>
 
-			<input
-				type="file"
-				accept="image/jpeg,image/png,image/webp"
-				multiple
-				onChange={event => {
-					const selectedFiles = Array.from(event.target.files ?? [])
+			<Field data-invalid={fieldState.invalid}>
+				<FieldLabel htmlFor={field.name}>Add photos</FieldLabel>
 
-					const filesByKey = new Map(
-						field.value.map(file => [getFileKey(file), file]),
-					)
+				<Input
+					id={field.name}
+					type="file"
+					accept="image/jpeg,image/png,image/webp"
+					multiple
+					aria-invalid={fieldState.invalid}
+					onChange={event => {
+						const selectedFiles = Array.from(event.target.files ?? [])
 
-					selectedFiles.forEach(file => {
-						filesByKey.set(getFileKey(file), file)
-					})
+						const filesByKey = new Map(
+							field.value.map(file => [getFileKey(file), file]),
+						)
 
-					field.onChange(Array.from(filesByKey.values()))
+						selectedFiles.forEach(file => {
+							filesByKey.set(getFileKey(file), file)
+						})
 
-					event.target.value = ""
-				}}
-			/>
+						field.onChange(Array.from(filesByKey.values()))
 
-			{errors.photoFiles && <p>{errors.photoFiles.message}</p>}
+						event.target.value = ""
+					}}
+				/>
 
-			<div>
+				<FieldError errors={[fieldState.error]} />
+			</Field>
+
+			<div className="grid grid-cols-3 gap-4">
 				{field.value.map((file, index) => (
 					<PhotoPreview
 						key={getFileKey(file)}
