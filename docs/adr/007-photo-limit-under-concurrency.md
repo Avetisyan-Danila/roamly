@@ -25,6 +25,6 @@ PostgreSQL aborts one of two conflicting serializable transactions (Prisma `P203
 
 - \+ The limit and contiguous positions hold under any concurrency, verified by an E2E test with parallel confirms.
 - \+ No raw SQL and no extra columns.
-- − Conflicts surface as `409`; the client is expected to retry.
+- − Conflicts surface as `409`; the client is expected to retry. The wizard avoids them by confirming one photo at a time ([incident 004](../incidents/004-parallel-photo-confirms-conflict.md)).
 - − Serializable transactions can abort for broader reasons than the actual conflict under load.
 - − The early check ignores pending uploads, so it does not stop a client from obtaining more upload URLs than free slots.

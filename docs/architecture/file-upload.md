@@ -114,7 +114,7 @@ S3 `DeleteObject` is idempotent, so a repeated run is harmless.
 - `url` in photo responses expires in 15 minutes and changes on every request. Identify photos by `id`, refetch the list to get fresh URLs, never persist `url`.
 - `409` "please retry" can be retried; `422` means the file itself is rejected.
 - Photos can be managed only while the property is a `DRAFT`.
-- Confirm uploads of one property one at a time. Parallel confirms run `Serializable` transactions over the same photo count, so all but one fail with `409`. The wizard sends `upload-url` and `PUT` up to 3 at a time and queues confirms (`use-draft-photos.ts`).
+- Confirm uploads of one property one at a time. Parallel confirms run `Serializable` transactions over the same photo count, so all but one fail with `409`. The wizard sends `upload-url` and `PUT` up to 3 at a time and queues confirms (`use-draft-photos.ts`, [incident 004](../incidents/004-parallel-photo-confirms-conflict.md)).
 
 ## Known limitations
 
