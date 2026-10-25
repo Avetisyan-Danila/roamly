@@ -27,6 +27,8 @@ import { AmenitiesStep } from "./steps/amenities-step"
 import { PhotosStep } from "./steps/photos-step"
 import { PricingStep } from "./steps/pricing-step"
 import { PreviewStep } from "./steps/preview-step"
+import { useDraftPhotos } from "../model/use-draft-photos"
+import { DraftPhotosContext } from "./draft-photos-context"
 import { getAmenities } from "@/entities/amenity/api/get-amenities"
 import { Button } from "@/shared/ui/button"
 import { Card, CardContent, CardFooter } from "@/shared/ui/card"
@@ -90,6 +92,8 @@ export function CreatePropertyForm({ initialDraft }: CreatePropertyFormProps) {
 		setRetryCount(count => count + 1)
 	}
 
+	const draftPhotos = useDraftPhotos(draftId)
+
 	const form = useForm<CreatePropertyFormValues>({
 		resolver: zodResolver(createPropertySchema),
 		defaultValues: initialDraft
@@ -102,6 +106,11 @@ export function CreatePropertyForm({ initialDraft }: CreatePropertyFormProps) {
 	const CurrentStepComponent = STEP_COMPONENTS[currentStepConfig.id]
 
 	const saveCurrentStep = async (): Promise<boolean> => {
+		// Photos are saved to the draft on upload, the step only checks the result
+		if (currentStepConfig.id === "photos") {
+			return draftPhotos.validate()
+		}
+
 		const { fields } = currentStepConfig
 
 		const isValid = await form.trigger([...fields])
@@ -113,11 +122,6 @@ export function CreatePropertyForm({ initialDraft }: CreatePropertyFormProps) {
 		const request = mapUpdateDraftRequest(
 			parseStepValues(form.getValues(), fields),
 		)
-
-		// Photos step has no draft fields, and the API rejects an empty PATCH
-		if (Object.values(request).every(value => value === undefined)) {
-			return true
-		}
 
 		try {
 			let id = draftId
@@ -174,7 +178,6 @@ export function CreatePropertyForm({ initialDraft }: CreatePropertyFormProps) {
 		const request = mapUpdateDraftRequest(values)
 
 		console.log("Create property request:", request)
-		console.log("Photo files:", values.photoFiles)
 	}
 
 	return (
@@ -185,43 +188,47 @@ export function CreatePropertyForm({ initialDraft }: CreatePropertyFormProps) {
 					retry: handleAmenitiesRetry,
 				}}
 			>
-				<form onSubmit={form.handleSubmit(handlePublish)}>
-					<Card>
-						<CardContent className="flex flex-col gap-4">
-							<CurrentStepComponent />
+				<DraftPhotosContext.Provider value={draftPhotos}>
+					<form onSubmit={form.handleSubmit(handlePublish)}>
+						<Card>
+							<CardContent className="flex flex-col gap-4">
+								<CurrentStepComponent />
 
-							<FieldError errors={[form.formState.errors.root?.server]} />
-						</CardContent>
+								<FieldError errors={[form.formState.errors.root?.server]} />
+							</CardContent>
 
-						<CardFooter className="justify-between">
-							{currentStep > 0 && (
-								<Button type="button" variant="outline" onClick={handleBack}>
-									Back
-								</Button>
-							)}
+							<CardFooter className="justify-between">
+								{currentStep > 0 && (
+									<Button type="button" variant="outline" onClick={handleBack}>
+										Back
+									</Button>
+								)}
 
-							{isPreviewStep ? (
-								<Button key="publish" type="submit" className="ml-auto">
-									Publish
-								</Button>
-							) : (
-								<Button
-									key="next"
-									type="button"
-									className="ml-auto"
-									onClick={handleNext}
-									disabled={
-										isSaving ||
-										(currentStepConfig.id === "amenities" &&
-											amenitiesState.status !== "success")
-									}
-								>
-									{isSaving ? "Saving..." : "Next"}
-								</Button>
-							)}
-						</CardFooter>
-					</Card>
-				</form>
+								{isPreviewStep ? (
+									<Button key="publish" type="submit" className="ml-auto">
+										Publish
+									</Button>
+								) : (
+									<Button
+										key="next"
+										type="button"
+										className="ml-auto"
+										onClick={handleNext}
+										disabled={
+											isSaving ||
+											(currentStepConfig.id === "amenities" &&
+												amenitiesState.status !== "success") ||
+											(currentStepConfig.id === "photos" &&
+												(draftPhotos.photos === null || draftPhotos.isUploading))
+										}
+									>
+										{isSaving ? "Saving..." : "Next"}
+									</Button>
+								)}
+							</CardFooter>
+						</Card>
+					</form>
+				</DraftPhotosContext.Provider>
 			</AmenitiesCatalogContext.Provider>
 		</FormProvider>
 	)

@@ -20,9 +20,6 @@ export const DEFAULT_FORM_VALUES: CreatePropertyFormValues = {
 	// Amenities
 	amenityIds: [],
 
-	// Photos
-	photoFiles: [],
-
 	// Pricing
 	pricePerNight: 100,
 	currency: "EUR",
@@ -46,9 +43,6 @@ export function mapDraftToFormValues(
 		longitude: draft.longitude ?? DEFAULT_FORM_VALUES.longitude,
 
 		amenityIds: draft.amenities.map(amenity => amenity.id),
-
-		// Local files are not stored in the draft
-		photoFiles: DEFAULT_FORM_VALUES.photoFiles,
 
 		pricePerNight:
 			draft.pricePerNight === null

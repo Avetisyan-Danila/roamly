@@ -32,7 +32,7 @@ export const PROPERTY_FORM_STEPS = [
 	},
 	{
 		id: "photos",
-		fields: ["photoFiles"],
+		fields: [],
 	},
 	{
 		id: "pricing",

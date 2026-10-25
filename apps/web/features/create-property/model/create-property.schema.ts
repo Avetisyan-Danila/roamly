@@ -4,7 +4,7 @@ const MAX_PHOTO_SIZE = 10 * 1024 * 1024
 
 const ALLOWED_PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"]
 
-const photoFileSchema = z
+export const photoFileSchema = z
 	.custom<File>(value => value instanceof File, {
 		message: "Invalid file",
 	})
@@ -77,12 +77,6 @@ export const createPropertySchema = z.object({
 
 	// Amenities
 	amenityIds: z.array(z.string()),
-
-	// Photos
-	photoFiles: z
-		.array(photoFileSchema)
-		.min(1, "Add at least one photo")
-		.max(10, "You can upload up to 10 photos"),
 
 	// Pricing
 	pricePerNight: z

@@ -114,6 +114,7 @@ S3 `DeleteObject` is idempotent, so a repeated run is harmless.
 - `url` in photo responses expires in 15 minutes and changes on every request. Identify photos by `id`, refetch the list to get fresh URLs, never persist `url`.
 - `409` "please retry" can be retried; `422` means the file itself is rejected.
 - Photos can be managed only while the property is a `DRAFT`.
+- Confirm uploads of one property one at a time. Parallel confirms run `Serializable` transactions over the same photo count, so all but one fail with `409`. The wizard sends `upload-url` and `PUT` up to 3 at a time and queues confirms (`use-draft-photos.ts`).
 
 ## Known limitations
 
@@ -123,6 +124,7 @@ S3 `DeleteObject` is idempotent, so a repeated run is harmless.
 - **Confirm memory.** One confirm holds up to 10 MB of input plus a decoded image of up to 25 MP (about 100 MB as RGBA). Parallel confirms are the first suspect under load.
 - **Cron on every instance.** Each API instance runs both jobs. Deletion is idempotent, so this is wasted work rather than data corruption, but it will matter with horizontal scaling.
 - **No max attempts.** A permanently failing deletion task is retried forever every 10 minutes.
+- **Photo order is confirm order.** `position` is assigned at confirm, so photos selected together are ordered by which `PUT` finished first, not by selection order.
 - **Photos are draft-only.** A published property cannot add, remove or reorder photos. There is no reorder endpoint yet.
 - **Bucket CORS is not in the repo.** Local uploads rely on SeaweedFS defaults; staging and production need an explicit CORS policy for the web origin.
 

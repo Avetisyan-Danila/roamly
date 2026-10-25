@@ -1,9 +1,12 @@
 "use client"
 
+import { useEffect } from "react"
 import { useFormContext, useWatch } from "react-hook-form"
 
 import type { CreatePropertyFormValues } from "../../model/create-property.schema"
 import { useAmenitiesCatalog } from "../amenities-catalog-context"
+import { useDraftPhotosContext } from "../draft-photos-context"
+import { PhotoPreview } from "./photo-preview"
 import { Separator } from "@/shared/ui/separator"
 
 export function PreviewStep() {
@@ -11,12 +14,18 @@ export function PreviewStep() {
 
 	const { state: amenitiesState } = useAmenitiesCatalog()
 
+	const { photos, reload } = useDraftPhotosContext()
+
+	// Photo URLs from the photos step may have expired by now
+	useEffect(() => {
+		reload()
+	}, [reload])
+
 	const values = useWatch({
 		control,
 	})
 
 	const amenityIds = values.amenityIds ?? []
-	const photoFiles = values.photoFiles ?? []
 
 	return (
 		<section className="flex flex-col gap-4">
@@ -69,15 +78,15 @@ export function PreviewStep() {
 			<div className="flex flex-col gap-1">
 				<h3 className="font-medium">Photos</h3>
 
-				<p>{photoFiles.length} photo(s) selected</p>
-
-				<ul className="list-inside list-disc">
-					{photoFiles.map(file => (
-						<li key={`${file.name}-${file.size}-${file.lastModified}`}>
-							{file.name}
-						</li>
+				<div className="grid grid-cols-4 gap-2">
+					{photos?.map((photo, index) => (
+						<PhotoPreview
+							key={photo.id}
+							source={photo.url}
+							alt={`Photo ${index + 1}`}
+						/>
 					))}
-				</ul>
+				</div>
 			</div>
 
 			<Separator />
