@@ -991,6 +991,29 @@
               "$ref": "#/components/schemas/AmenityResponseDto"
             }
           },
+          "missingRequirements": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "title",
+                "description",
+                "country",
+                "city",
+                "address",
+                "latitude",
+                "longitude",
+                "pricePerNight",
+                "currency",
+                "maxGuests",
+                "bedrooms",
+                "beds",
+                "bathrooms",
+                "amenities",
+                "photos"
+              ]
+            }
+          },
           "createdAt": {
             "format": "date-time",
             "type": "string"
@@ -1018,6 +1041,7 @@
           "beds",
           "bathrooms",
           "amenities",
+          "missingRequirements",
           "createdAt",
           "updatedAt"
         ]

@@ -291,6 +291,7 @@ export interface components {
             beds: number | null;
             bathrooms: number | null;
             amenities: components["schemas"]["AmenityResponseDto"][];
+            missingRequirements: ("title" | "description" | "country" | "city" | "address" | "latitude" | "longitude" | "pricePerNight" | "currency" | "maxGuests" | "bedrooms" | "beds" | "bathrooms" | "amenities" | "photos")[];
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */

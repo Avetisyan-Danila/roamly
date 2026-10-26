@@ -6,11 +6,23 @@ import { PropertyStatus } from '../../generated/prisma/enums.js';
 
 import { DraftPropertyResponseDto } from '../dto/draft-property-response.dto.js';
 import { PropertyResponseDto } from '../dto/property-response.dto.js';
+import { getMissingRequirements } from '../draft-completeness.js';
 
 type PropertyWithAmenities = Prisma.PropertyGetPayload<{
   include: {
     amenities: true;
   };
+}>;
+
+export const DRAFT_INCLUDE = {
+  amenities: true,
+  _count: {
+    select: { propertyPhotos: true },
+  },
+} satisfies Prisma.PropertyInclude;
+
+type DraftWithRelations = Prisma.PropertyGetPayload<{
+  include: typeof DRAFT_INCLUDE;
 }>;
 
 export class PropertyMapper {
@@ -62,7 +74,7 @@ export class PropertyMapper {
   }
 
   static toDraftResponse(
-    property: PropertyWithAmenities,
+    property: DraftWithRelations,
   ): DraftPropertyResponseDto {
     if (property.status !== PropertyStatus.DRAFT) {
       throw new InternalServerErrorException('Expected a draft property');
@@ -86,6 +98,10 @@ export class PropertyMapper {
       beds: property.beds,
       bathrooms: property.bathrooms?.toNumber() ?? null,
       amenities: property.amenities.map(AmenityMapper.toResponse),
+      missingRequirements: getMissingRequirements(
+        property,
+        property._count.propertyPhotos,
+      ),
       createdAt: property.createdAt,
       updatedAt: property.updatedAt,
     };

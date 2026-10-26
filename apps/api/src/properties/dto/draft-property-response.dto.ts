@@ -1,5 +1,6 @@
 import { Currency } from '../../generated/prisma/enums.js';
 import { AmenityResponseDto } from '../../amenities/dto/amenity-response.dto.js';
+import type { DraftRequirement } from '../draft-completeness.js';
 
 export class DraftPropertyResponseDto {
   id: string;
@@ -19,6 +20,7 @@ export class DraftPropertyResponseDto {
   beds: number | null;
   bathrooms: number | null;
   amenities: AmenityResponseDto[];
+  missingRequirements: DraftRequirement[];
   createdAt: Date;
   updatedAt: Date;
 }

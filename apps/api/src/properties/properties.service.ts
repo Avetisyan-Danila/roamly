@@ -10,7 +10,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { PropertyAuthorizationService } from './authorization/property-authorization.service.js';
 import { StorageService } from '../storage/storage.service.js';
 import { PropertyStatus } from '../generated/prisma/enums.js';
-import { PropertyMapper } from './mappers/property.mapper.js';
+import { DRAFT_INCLUDE, PropertyMapper } from './mappers/property.mapper.js';
 import { PropertyResponseDto } from './dto/property-response.dto.js';
 import { UpdatePropertyDto } from './dto/update-property.dto.js';
 import { DraftPropertyResponseDto } from './dto/draft-property-response.dto.js';
@@ -19,9 +19,7 @@ import { CreatePhotoUploadUrlDto } from './dto/create-photo-upload-url.dto.js';
 import { randomUUID } from 'node:crypto';
 import { processPropertyPhoto } from './photos/process-property-photo.js';
 import { PHOTO_CLEANUP_GRACE_PERIOD_MS } from './photos/photo-cleanup.constants.js';
-import { plainToInstance } from 'class-transformer';
-import { CreatePropertyDto } from './dto/create-property.dto.js';
-import { validateSync } from 'class-validator';
+import { getMissingRequirements } from './draft-completeness.js';
 import { PropertyDetailsResponseDto } from './dto/property-details-response.dto.js';
 import {
   ConcurrentModificationException,
@@ -105,9 +103,7 @@ export class PropertiesService {
           },
         },
       },
-      include: {
-        amenities: true,
-      },
+      include: DRAFT_INCLUDE,
     });
 
     return PropertyMapper.toDraftResponse(property);
@@ -123,9 +119,7 @@ export class PropertiesService {
         ownerId,
         status: PropertyStatus.DRAFT,
       },
-      include: {
-        amenities: true,
-      },
+      include: DRAFT_INCLUDE,
     });
 
     if (!property) {
@@ -215,12 +209,11 @@ export class PropertiesService {
                     id: amenityId,
                   })),
                 },
+                amenitiesConfirmedAt: new Date(),
               }
             : {}),
         },
-        include: {
-          amenities: true,
-        },
+        include: DRAFT_INCLUDE,
       });
 
       return PropertyMapper.toDraftResponse(property);
@@ -391,44 +384,26 @@ export class PropertiesService {
               ownerId,
               status: PropertyStatus.DRAFT,
             },
-            include: {
-              amenities: true,
-            },
           });
 
           if (!draft) {
             throw new PropertyNotDraftException();
           }
 
-          const propertyData = plainToInstance(CreatePropertyDto, {
-            title: draft.title,
-            description: draft.description,
-            country: draft.country,
-            city: draft.city,
-            address: draft.address,
-            latitude: draft.latitude?.toNumber(),
-            longitude: draft.longitude?.toNumber(),
-            pricePerNight: draft.pricePerNight?.toFixed(2),
-            currency: draft.currency,
-            maxGuests: draft.maxGuests,
-            bedrooms: draft.bedrooms,
-            beds: draft.beds,
-            bathrooms: draft.bathrooms?.toNumber(),
-          });
-
-          const errors = validateSync(propertyData);
-
-          if (errors.length > 0) {
-            throw new PropertyIncompleteException(
-              errors.map((error) => error.property),
-            );
-          }
-
           const photoCount = await tx.propertyPhoto.count({
             where: { propertyId: id },
           });
 
-          if (photoCount === 0) {
+          const missing = getMissingRequirements(draft, photoCount);
+          const incompleteFields = missing.filter(
+            (requirement) => requirement !== 'photos',
+          );
+
+          if (incompleteFields.length > 0) {
+            throw new PropertyIncompleteException(incompleteFields);
+          }
+
+          if (missing.includes('photos')) {
             throw new PhotoRequiredException();
           }
 

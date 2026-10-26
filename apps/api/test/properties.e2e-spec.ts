@@ -41,6 +41,35 @@ describe('Properties (e2e)', () => {
       .expect(201);
   }
 
+  const validPropertyData = {
+    title: 'Sunny apartment in Madrid',
+    description: 'A bright apartment near the city center.',
+    country: 'Spain',
+    city: 'Madrid',
+    address: 'Calle Mayor 12',
+    latitude: 40.4168,
+    longitude: -3.7038,
+    pricePerNight: '120.00',
+    currency: 'EUR',
+    maxGuests: 2,
+    bedrooms: 1,
+    beds: 1,
+    bathrooms: 1,
+  };
+
+  async function createFilledDraft(agent: TestAgent): Promise<string> {
+    const response = await createDraft(agent);
+    const propertyId = response.body.id as string;
+
+    await agent
+      .patch(`/properties/drafts/${propertyId}`)
+      .set(CSRF_HEADER, CSRF_HEADER_VALUE)
+      .send({ ...validPropertyData, amenityIds: [] })
+      .expect(200);
+
+    return propertyId;
+  }
+
   describe('POST /properties/drafts', () => {
     it('creates an empty draft for the authenticated owner', async () => {
       const ownerAgent = await createAuthenticatedAgent(app, {
@@ -65,6 +94,9 @@ describe('Properties (e2e)', () => {
       });
 
       expect(response.body.id).toEqual(expect.any(String));
+      expect(response.body.missingRequirements).toEqual(
+        expect.arrayContaining(['title', 'amenities', 'photos']),
+      );
     });
 
     it('returns 401 when the user is not authenticated', async () => {
@@ -102,6 +134,21 @@ describe('Properties (e2e)', () => {
         title: null,
         amenities: [],
       });
+    });
+
+    it('reports no missing requirements for a complete draft', async () => {
+      const ownerAgent = await createAuthenticatedAgent(app, {
+        email: 'owner@example.com',
+      });
+
+      const propertyId = await createFilledDraft(ownerAgent);
+      await seedPropertyPhotos(prisma, propertyId, 1);
+
+      const response = await ownerAgent
+        .get(`/properties/drafts/${propertyId}`)
+        .expect(200);
+
+      expect(response.body.missingRequirements).toEqual([]);
     });
 
     it('returns 404 when another user requests the draft', async () => {
@@ -175,6 +222,33 @@ describe('Properties (e2e)', () => {
           code: 'WIFI',
         }),
       ]);
+    });
+
+    it('treats an empty amenity list as answered', async () => {
+      const ownerAgent = await createAuthenticatedAgent(app, {
+        email: 'owner@example.com',
+      });
+
+      const created = await createDraft(ownerAgent);
+      const propertyId = created.body.id as string;
+
+      const withoutAmenities = await ownerAgent
+        .patch(`/properties/drafts/${propertyId}`)
+        .set(CSRF_HEADER, CSRF_HEADER_VALUE)
+        .send({ title: 'Sunny apartment in Madrid' })
+        .expect(200);
+
+      expect(withoutAmenities.body.missingRequirements).toContain('amenities');
+
+      const withEmptyAmenities = await ownerAgent
+        .patch(`/properties/drafts/${propertyId}`)
+        .set(CSRF_HEADER, CSRF_HEADER_VALUE)
+        .send({ amenityIds: [] })
+        .expect(200);
+
+      expect(withEmptyAmenities.body.missingRequirements).not.toContain(
+        'amenities',
+      );
     });
 
     it('returns 403 when another user tries to update the draft', async () => {
@@ -257,35 +331,6 @@ describe('Properties (e2e)', () => {
   });
 
   describe('POST /properties/:id/publish', () => {
-    const validPropertyData = {
-      title: 'Sunny apartment in Madrid',
-      description: 'A bright apartment near the city center.',
-      country: 'Spain',
-      city: 'Madrid',
-      address: 'Calle Mayor 12',
-      latitude: 40.4168,
-      longitude: -3.7038,
-      pricePerNight: '120.00',
-      currency: 'EUR',
-      maxGuests: 2,
-      bedrooms: 1,
-      beds: 1,
-      bathrooms: 1,
-    };
-
-    async function createFilledDraft(agent: TestAgent): Promise<string> {
-      const response = await createDraft(agent);
-      const propertyId = response.body.id as string;
-
-      await agent
-        .patch(`/properties/drafts/${propertyId}`)
-        .set(CSRF_HEADER, CSRF_HEADER_VALUE)
-        .send(validPropertyData)
-        .expect(200);
-
-      return propertyId;
-    }
-
     it('publishes a complete draft and rejects repeated publication', async () => {
       const agent = await createAuthenticatedAgent(app, {
         email: 'owner@example.com',
@@ -353,6 +398,31 @@ describe('Properties (e2e)', () => {
       });
 
       expect(property.status).toBe('DRAFT');
+    });
+
+    it('rejects publishing when amenities were not answered', async () => {
+      const agent = await createAuthenticatedAgent(app, {
+        email: 'owner@example.com',
+      });
+
+      const response = await createDraft(agent);
+      const propertyId = response.body.id as string;
+
+      await agent
+        .patch(`/properties/drafts/${propertyId}`)
+        .set(CSRF_HEADER, CSRF_HEADER_VALUE)
+        .send(validPropertyData)
+        .expect(200);
+
+      await seedPropertyPhotos(prisma, propertyId, 1);
+
+      const publishResponse = await agent
+        .post(`/properties/${propertyId}/publish`)
+        .set(CSRF_HEADER, CSRF_HEADER_VALUE)
+        .expect(422);
+
+      expect(publishResponse.body.errorCode).toBe('PROPERTY_INCOMPLETE');
+      expect(publishResponse.body.invalidFields).toEqual(['amenities']);
     });
 
     it('requires at least one confirmed photo', async () => {
