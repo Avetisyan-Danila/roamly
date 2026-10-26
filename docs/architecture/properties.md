@@ -6,7 +6,7 @@ A property is created as an empty draft, filled in step by step, and published o
 
 ```text
 POST /properties/drafts ──► DRAFT ──PATCH…──► DRAFT ──POST /:id/publish──► PUBLISHED
-                            (any field may be null)                         (complete, ≥ 1 photo)
+                            (any field may be null)                         (complete, amenities answered, ≥ 1 photo)
 ```
 
 Each property has exactly one owner (`ownerId`). There are no host/guest roles: ownership is checked per property.
@@ -14,6 +14,7 @@ Each property has exactly one owner (`ownerId`). There are no host/guest roles: 
 Decisions behind this design:
 
 - [ADR 008: Drafts as a status on a single table](../adr/008-drafts-as-status-on-single-table.md)
+- [ADR 009: Draft completeness owned by the server](../adr/009-draft-completeness-owned-by-server.md)
 - [ADR 007: Photo limit under concurrency](../adr/007-photo-limit-under-concurrency.md) (the same `Serializable` approach is used for publish)
 
 Photos are described in [file-upload.md](file-upload.md).
@@ -59,6 +60,8 @@ Unknown fields are rejected by the global `ValidationPipe` (`whitelist` + `forbi
 
 `amenityIds` replaces the whole set (`set`, not append). Unknown IDs return `400` with `missingAmenityIds`.
 
+On a draft, any `amenityIds` in the body, including `[]`, also sets `amenitiesConfirmedAt`: the host has answered the amenities step. An omitted `amenityIds` leaves it unchanged.
+
 ## Money and coordinates
 
 | Field | Database | API |
@@ -89,20 +92,33 @@ prisma.property.update({ where: { id, status: DRAFT }, ... })
 
 If the condition no longer holds, Prisma throws `P2025` and the API returns `409`. `ensureOwner` gives precise errors; the `where` clause gives correctness.
 
+## Completeness
+
+`getMissingRequirements(property, photoCount)` in `draft-completeness.ts` is the single definition of a complete draft. It returns what is still missing:
+
+| Requirement | Missing when |
+|---|---|
+| `title`, `city`, … (every `CreatePropertyDto` field except `amenityIds`) | The value fails `CreatePropertyDto` validation (`plainToInstance` + `validateSync`) |
+| `amenities` | `amenitiesConfirmedAt` is `null` |
+| `photos` | The property has no `PropertyPhoto` |
+
+Every draft response includes the result as `missingRequirements`; the photo count comes from `_count` in the same query (`DRAFT_INCLUDE`). The wizard maps requirements to its steps and resumes on the first step with a missing one, or on the preview when the list is empty. The wizard step itself is not stored.
+
 ## Publish
 
 Inside one `Serializable` transaction:
 
 1. Reload the draft by `id`, `ownerId` and `status: DRAFT`.
-2. Validate its fields with `CreatePropertyDto` (`plainToInstance` + `validateSync`). On failure: `422` with `invalidFields: string[]`.
-3. Require at least one `PropertyPhoto`. Otherwise `422`.
-4. Set `status = PUBLISHED`.
+2. Count its photos and call `getMissingRequirements`.
+3. Anything missing except `photos`: `422 PROPERTY_INCOMPLETE` with `invalidFields: string[]`.
+4. `photos` missing: `422 PHOTO_REQUIRED`.
+5. Set `status = PUBLISHED`.
 
-`CreatePropertyDto` is the single definition of a complete property; publish reuses it instead of a separate checklist.
+Publish and the wizard use the same function, so they cannot disagree on what is missing. The result can still change between the two calls, for example when the last photo is deleted in another tab.
 
-`Serializable` prevents publishing with zero photos when the last photo is deleted concurrently: PostgreSQL aborts one of the conflicting transactions, and the API returns `409 Concurrent property change, please retry`.
+`Serializable` prevents publishing with zero photos when the last photo is deleted concurrently: PostgreSQL aborts one of the conflicting transactions, and the API returns `409 CONCURRENT_MODIFICATION`.
 
-`invalidFields` names DTO properties, so the client can map them to wizard steps.
+`invalidFields` names DTO properties and `amenities`, the same values as `missingRequirements`.
 
 ## Deletion
 
@@ -110,7 +126,7 @@ Inside one `Serializable` transaction:
 
 ## Invariants
 
-1. A `PUBLISHED` property has all required fields and at least one photo.
+1. A `PUBLISHED` property has all required fields, `amenitiesConfirmedAt` set and at least one photo.
 2. `status` changes only through `publish`, and only from `DRAFT` to `PUBLISHED`.
 3. Only the owner can read a draft or modify a property.
 4. Every write repeats its status condition in the database query.

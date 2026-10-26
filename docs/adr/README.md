@@ -16,6 +16,7 @@ ADRs are not edited after acceptance. A changed decision gets a new ADR that sup
 | [006](006-deferred-storage-deletion.md) | Deferred storage deletion | Accepted |
 | [007](007-photo-limit-under-concurrency.md) | Photo limit under concurrency | Accepted |
 | [008](008-drafts-as-status-on-single-table.md) | Drafts as a status on a single table | Accepted |
+| [009](009-draft-completeness-owned-by-server.md) | Draft completeness owned by the server | Accepted |
 
 ## Template
 
