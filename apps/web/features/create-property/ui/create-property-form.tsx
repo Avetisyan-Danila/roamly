@@ -10,6 +10,7 @@ import {
 } from "../model/create-property.schema"
 import {
 	PROPERTY_FORM_STEPS,
+	getResumeStep,
 	parseStepValues,
 	type PropertyFormStepId,
 } from "../model/property-form-steps"
@@ -52,7 +53,9 @@ type CreatePropertyFormProps = {
 }
 
 export function CreatePropertyForm({ initialDraft }: CreatePropertyFormProps) {
-	const [currentStep, setCurrentStep] = useState(0)
+	const [currentStep, setCurrentStep] = useState(() =>
+		initialDraft ? getResumeStep(initialDraft.missingRequirements) : 0,
+	)
 
 	const [draftId, setDraftId] = useState(initialDraft?.id ?? null)
 
@@ -192,6 +195,10 @@ export function CreatePropertyForm({ initialDraft }: CreatePropertyFormProps) {
 					<form onSubmit={form.handleSubmit(handlePublish)}>
 						<Card>
 							<CardContent className="flex flex-col gap-4">
+								<p className="text-sm text-muted-foreground">
+									Step {currentStep + 1} of {PROPERTY_FORM_STEPS.length}
+								</p>
+
 								<CurrentStepComponent />
 
 								<FieldError errors={[form.formState.errors.root?.server]} />
