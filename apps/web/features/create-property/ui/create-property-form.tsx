@@ -3,7 +3,12 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { FormProvider, useForm } from "react-hook-form"
 import { toast } from "sonner"
-import { useEffect, useState, type ComponentType, type MouseEvent } from "react"
+import {
+	useEffect,
+	useState,
+	type ComponentType,
+	type SubmitEvent,
+} from "react"
 
 import {
 	createPropertySchema,
@@ -17,12 +22,14 @@ import {
 } from "../model/property-form-steps"
 import { mapUpdateDraftRequest } from "../model/map-update-draft-request"
 import { getDraftSaveErrorMessage } from "../model/get-draft-save-error-message"
+import { getPublishError } from "../model/get-publish-error"
 import {
 	DEFAULT_FORM_VALUES,
 	mapDraftToFormValues,
 } from "../model/map-draft-to-form-values"
 import { createDraft, type DraftProperty } from "../api/create-draft"
 import { updateDraft } from "../api/update-draft"
+import { publishDraft } from "../api/publish-draft"
 import { BasicInformationStep } from "./steps/basic-information-step"
 import { LocationStep } from "./steps/location-step"
 import { AmenitiesStep } from "./steps/amenities-step"
@@ -31,6 +38,7 @@ import { PricingStep } from "./steps/pricing-step"
 import { PreviewStep } from "./steps/preview-step"
 import { useDraftPhotos } from "../model/use-draft-photos"
 import { DraftPhotosContext } from "./draft-photos-context"
+import { PropertyPublishedDialog } from "./property-published-dialog"
 import { getAmenities } from "@/entities/amenity/api/get-amenities"
 import { Button } from "@/shared/ui/button"
 import { Card, CardContent, CardFooter } from "@/shared/ui/card"
@@ -50,9 +58,13 @@ const STEP_COMPONENTS = {
 
 type CreatePropertyFormProps = {
 	initialDraft: DraftProperty | null
+	onCreateAnother: () => void
 }
 
-export function CreatePropertyForm({ initialDraft }: CreatePropertyFormProps) {
+export function CreatePropertyForm({
+	initialDraft,
+	onCreateAnother,
+}: CreatePropertyFormProps) {
 	const [currentStep, setCurrentStep] = useState(() =>
 		initialDraft ? getResumeStep(initialDraft.missingRequirements) : 0,
 	)
@@ -60,6 +72,8 @@ export function CreatePropertyForm({ initialDraft }: CreatePropertyFormProps) {
 	const [draftId, setDraftId] = useState(initialDraft?.id ?? null)
 
 	const [isSaving, setIsSaving] = useState(false)
+
+	const [isPublished, setIsPublished] = useState(false)
 
 	const [amenitiesState, setAmenitiesState] = useState<AmenitiesState>({
 		status: "loading",
@@ -149,9 +163,7 @@ export function CreatePropertyForm({ initialDraft }: CreatePropertyFormProps) {
 		}
 	}
 
-	const handleNext = async (event: MouseEvent<HTMLButtonElement>) => {
-		event.preventDefault()
-
+	const handleNext = async () => {
 		setIsSaving(true)
 
 		try {
@@ -173,10 +185,37 @@ export function CreatePropertyForm({ initialDraft }: CreatePropertyFormProps) {
 
 	const isPreviewStep = currentStepConfig.id === "preview"
 
-	const handlePublish = (values: CreatePropertyFormValues) => {
-		const request = mapUpdateDraftRequest(values)
+	const handlePublish = async () => {
+		if (!draftId) return
 
-		console.log("Create property request:", request)
+		setIsSaving(true)
+
+		try {
+			await publishDraft(draftId)
+
+			setIsPublished(true)
+		} catch (error) {
+			const { message, step } = getPublishError(error)
+
+			if (step !== undefined) {
+				setCurrentStep(step)
+			}
+
+			toast.error(message)
+
+			setIsSaving(false)
+		}
+	}
+
+	const handleSubmit = (event: SubmitEvent<HTMLFormElement>) => {
+		event.preventDefault()
+
+		if (isPreviewStep) {
+			handlePublish()
+			return
+		}
+
+		handleNext()
 	}
 
 	return (
@@ -188,7 +227,7 @@ export function CreatePropertyForm({ initialDraft }: CreatePropertyFormProps) {
 				}}
 			>
 				<DraftPhotosContext.Provider value={draftPhotos}>
-					<form onSubmit={form.handleSubmit(handlePublish)}>
+					<form onSubmit={handleSubmit}>
 						<Card>
 							<CardContent className="flex flex-col gap-4">
 								<p className="text-sm text-muted-foreground">
@@ -206,21 +245,26 @@ export function CreatePropertyForm({ initialDraft }: CreatePropertyFormProps) {
 								)}
 
 								{isPreviewStep ? (
-									<Button key="publish" type="submit" className="ml-auto">
-										Publish
+									<Button
+										key="publish"
+										type="submit"
+										className="ml-auto"
+										disabled={isSaving}
+									>
+										{isSaving ? "Publishing..." : "Publish"}
 									</Button>
 								) : (
 									<Button
 										key="next"
-										type="button"
+										type="submit"
 										className="ml-auto"
-										onClick={handleNext}
 										disabled={
 											isSaving ||
 											(currentStepConfig.id === "amenities" &&
 												amenitiesState.status !== "success") ||
 											(currentStepConfig.id === "photos" &&
-												(draftPhotos.photos === null || draftPhotos.isUploading))
+												(draftPhotos.photos === null ||
+													draftPhotos.isUploading))
 										}
 									>
 										{isSaving ? "Saving..." : "Next"}
@@ -229,6 +273,11 @@ export function CreatePropertyForm({ initialDraft }: CreatePropertyFormProps) {
 							</CardFooter>
 						</Card>
 					</form>
+
+					<PropertyPublishedDialog
+						open={isPublished}
+						onCreateAnother={onCreateAnother}
+					/>
 				</DraftPhotosContext.Provider>
 			</AmenitiesCatalogContext.Provider>
 		</FormProvider>

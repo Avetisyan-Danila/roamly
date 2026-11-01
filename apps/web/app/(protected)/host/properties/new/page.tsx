@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation"
 
 import { getDraft } from "@/features/create-property/api/get-draft"
-import { CreatePropertyForm } from "@/features/create-property/ui/create-property-form"
+import { CreatePropertyWizard } from "@/features/create-property/ui/create-property-wizard"
 import { ApiError } from "@/shared/api/server"
 
 export default async function NewPropertyPage({
@@ -16,7 +16,7 @@ export default async function NewPropertyPage({
 		<main className="mx-auto flex w-full max-w-2xl flex-col gap-6 p-4">
 			<h1 className="text-2xl font-semibold">Become a host</h1>
 
-			<CreatePropertyForm initialDraft={draft} />
+			<CreatePropertyWizard initialDraft={draft} />
 		</main>
 	)
 }

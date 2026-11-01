@@ -63,10 +63,7 @@ export const PROPERTY_FORM_STEPS = [
 
 export type PropertyFormStepId = (typeof PROPERTY_FORM_STEPS)[number]["id"]
 
-// A complete draft has nothing to fill in, so it resumes on the preview
-export function getResumeStep(
-	missingRequirements: readonly DraftRequirement[],
-): number {
+export function getResumeStep(missingRequirements: readonly string[]): number {
 	const stepIndex = PROPERTY_FORM_STEPS.findIndex(step =>
 		step.requirements.some(requirement =>
 			missingRequirements.includes(requirement),
