@@ -3,6 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useRouter } from "next/navigation"
 import { Controller, useForm } from "react-hook-form"
+import { toast } from "sonner"
 
 import { register } from "../api/register"
 import {
@@ -39,11 +40,11 @@ export function RegisterForm() {
 					return
 				}
 
-				form.setError("root.server", { message: "Registration failed" })
+				toast.error("Registration failed")
 				return
 			}
 
-			form.setError("root.server", { message: "Something went wrong" })
+			toast.error("Something went wrong")
 		}
 	}
 
@@ -131,8 +132,6 @@ export function RegisterForm() {
 						</Field>
 					)}
 				/>
-
-				<FieldError errors={[form.formState.errors.root?.server]} />
 
 				<Button type="submit" disabled={isSubmitting}>
 					{isSubmitting ? "Creating account..." : "Register"}

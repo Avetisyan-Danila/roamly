@@ -3,6 +3,7 @@ import { ThemeProvider } from "next-themes"
 import "./globals.css"
 
 import { ThemeToggle } from "@/features/theme-toggle"
+import { Toaster } from "@/shared/ui/sonner"
 
 import type { Metadata } from "next"
 
@@ -40,6 +41,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
 					</header>
 
 					{children}
+
+					<Toaster />
 				</ThemeProvider>
 			</body>
 		</html>

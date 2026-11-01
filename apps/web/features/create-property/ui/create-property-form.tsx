@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod"
 import { FormProvider, useForm } from "react-hook-form"
+import { toast } from "sonner"
 import { useEffect, useState, type ComponentType, type MouseEvent } from "react"
 
 import {
@@ -33,7 +34,6 @@ import { DraftPhotosContext } from "./draft-photos-context"
 import { getAmenities } from "@/entities/amenity/api/get-amenities"
 import { Button } from "@/shared/ui/button"
 import { Card, CardContent, CardFooter } from "@/shared/ui/card"
-import { FieldError } from "@/shared/ui/field"
 import {
 	AmenitiesCatalogContext,
 	AmenitiesState,
@@ -143,9 +143,7 @@ export function CreatePropertyForm({ initialDraft }: CreatePropertyFormProps) {
 
 			return true
 		} catch (error) {
-			form.setError("root.server", {
-				message: getDraftSaveErrorMessage(error),
-			})
+			toast.error(getDraftSaveErrorMessage(error))
 
 			return false
 		}
@@ -154,7 +152,6 @@ export function CreatePropertyForm({ initialDraft }: CreatePropertyFormProps) {
 	const handleNext = async (event: MouseEvent<HTMLButtonElement>) => {
 		event.preventDefault()
 
-		form.clearErrors("root")
 		setIsSaving(true)
 
 		try {
@@ -171,7 +168,6 @@ export function CreatePropertyForm({ initialDraft }: CreatePropertyFormProps) {
 	}
 
 	const handleBack = () => {
-		form.clearErrors("root")
 		setCurrentStep(step => Math.max(step - 1, 0))
 	}
 
@@ -200,8 +196,6 @@ export function CreatePropertyForm({ initialDraft }: CreatePropertyFormProps) {
 								</p>
 
 								<CurrentStepComponent />
-
-								<FieldError errors={[form.formState.errors.root?.server]} />
 							</CardContent>
 
 							<CardFooter className="justify-between">

@@ -3,6 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useRouter } from "next/navigation"
 import { Controller, useForm } from "react-hook-form"
+import { toast } from "sonner"
 
 import { login } from "../api/login"
 import { loginSchema, type LoginFormValues } from "../model/login.schema"
@@ -29,11 +30,11 @@ export function LoginForm() {
 			router.push("/profile")
 		} catch (error) {
 			if (error instanceof ApiError) {
-				form.setError("root.server", { message: "Invalid email or password" })
+				toast.error("Invalid email or password")
 				return
 			}
 
-			form.setError("root.server", { message: "Something went wrong" })
+			toast.error("Something went wrong")
 		}
 	}
 
@@ -81,8 +82,6 @@ export function LoginForm() {
 						</Field>
 					)}
 				/>
-
-				<FieldError errors={[form.formState.errors.root?.server]} />
 
 				<Button type="submit" disabled={isSubmitting}>
 					{isSubmitting ? "Logging in..." : "Login"}
