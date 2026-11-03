@@ -126,6 +126,7 @@ S3 `DeleteObject` is idempotent, so a repeated run is harmless.
 - **No max attempts.** A permanently failing deletion task is retried forever every 10 minutes.
 - **Photo order is confirm order.** `position` is assigned at confirm, so photos selected together are ordered by which `PUT` finished first, not by selection order.
 - **Photos are draft-only.** A published property cannot add, remove or reorder photos. There is no reorder endpoint yet.
+- **Photos bypass `next/image`.** Presigned GET URLs change on every read, so the optimizer cache never hits, and local storage IPs are rejected by default. Pages use plain `<img>` until photos get stable URLs (public bucket or CDN).
 - **Bucket CORS is not in the repo.** Local uploads rely on SeaweedFS defaults; staging and production need an explicit CORS policy for the web origin.
 
 ## Invariants
