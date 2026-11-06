@@ -1191,6 +1191,17 @@
           "position"
         ]
       },
+      "PropertyHostResponseDto": {
+        "type": "object",
+        "properties": {
+          "firstName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "firstName"
+        ]
+      },
       "PropertyDetailsResponseDto": {
         "type": "object",
         "properties": {
@@ -1199,6 +1210,9 @@
             "items": {
               "$ref": "#/components/schemas/PropertyPhotoResponseDto"
             }
+          },
+          "host": {
+            "$ref": "#/components/schemas/PropertyHostResponseDto"
           },
           "id": {
             "type": "string"
@@ -1275,6 +1289,7 @@
         },
         "required": [
           "photos",
+          "host",
           "id",
           "ownerId",
           "title",

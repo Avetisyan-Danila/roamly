@@ -331,8 +331,12 @@ export interface components {
             url: string;
             position: number;
         };
+        PropertyHostResponseDto: {
+            firstName: string;
+        };
         PropertyDetailsResponseDto: {
             photos: components["schemas"]["PropertyPhotoResponseDto"][];
+            host: components["schemas"]["PropertyHostResponseDto"];
             id: string;
             ownerId: string;
             title: string;

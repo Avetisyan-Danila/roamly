@@ -145,6 +145,9 @@ export class PropertiesService {
             position: true,
           },
         },
+        owner: {
+          select: { firstName: true },
+        },
       },
     });
 
@@ -163,6 +166,7 @@ export class PropertiesService {
     return {
       ...PropertyMapper.toPublishedResponse(property),
       photos,
+      host: { firstName: property.owner.firstName },
     };
   }
 

@@ -181,6 +181,35 @@ describe('Properties (e2e)', () => {
         .expect(404);
     });
 
+    it('exposes only the first name of the host', async () => {
+      const agent = await createAuthenticatedAgent(app, {
+        email: 'owner@example.com',
+        firstName: 'Anna',
+        lastName: 'Smith',
+      });
+
+      const propertyId = await createFilledDraft(agent);
+
+      await seedPropertyPhotos(prisma, propertyId, 1);
+
+      await agent
+        .post(`/properties/${propertyId}/publish`)
+        .set(CSRF_HEADER, CSRF_HEADER_VALUE)
+        .expect(201);
+
+      const response = await request(app.getHttpServer())
+        .get(`/properties/${propertyId}`)
+        .expect(200);
+
+      expect(response.body.host).toEqual({ firstName: 'Anna' });
+
+      const body = JSON.stringify(response.body);
+
+      expect(body).not.toContain('owner@example.com');
+      expect(body).not.toContain('Smith');
+      expect(body).not.toContain('passwordHash');
+    });
+
     it('returns 404 when the property does not exist', async () => {
       const missingPropertyId = '00000000-0000-4000-8000-000000000001';
 

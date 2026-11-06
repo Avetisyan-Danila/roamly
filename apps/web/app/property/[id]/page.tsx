@@ -30,7 +30,11 @@ export default async function PropertyPage({
 
 			<div className="grid gap-8 md:grid-cols-[1fr_22rem]">
 				<div className="flex flex-col divide-y">
-					<section className="pb-6">
+					<section className="flex flex-col gap-1 pb-6">
+						<h2 className="text-xl font-semibold">
+							Hosted by {property.host.firstName}
+						</h2>
+
 						<PropertyFacts property={property} />
 					</section>
 
