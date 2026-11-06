@@ -240,6 +240,7 @@ export interface components {
             errorCode?: "PHOTO_LIMIT_REACHED" | "CONCURRENT_MODIFICATION" | "INVALID_PROPERTY_STATUS" | "PHOTO_UPLOAD_UNAVAILABLE" | "INVALID_PHOTO" | "PROPERTY_INCOMPLETE" | "PHOTO_REQUIRED";
             invalidFields?: string[];
             missingAmenityIds?: string[];
+            requestId?: string;
         };
         RegisterDto: {
             /** Format: email */

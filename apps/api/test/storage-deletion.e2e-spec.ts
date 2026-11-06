@@ -157,19 +157,10 @@ describe('Storage deletion (e2e)', () => {
       },
     });
 
-    // Suppress the expected ERROR from NestJS
-    const errorLogSpy = vi
-      .spyOn(Logger.prototype, 'error')
-      .mockImplementation(() => undefined);
-
-    try {
-      await agent
-        .delete(`/properties/${propertyId}`)
-        .set(CSRF_HEADER, CSRF_HEADER_VALUE)
-        .expect(500);
-    } finally {
-      errorLogSpy.mockRestore();
-    }
+    await agent
+      .delete(`/properties/${propertyId}`)
+      .set(CSRF_HEADER, CSRF_HEADER_VALUE)
+      .expect(500);
 
     const property = await prisma.property.findUnique({
       where: { id: propertyId },

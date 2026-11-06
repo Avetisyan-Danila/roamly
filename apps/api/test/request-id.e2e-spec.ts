@@ -1,6 +1,7 @@
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 
+import { AmenitiesService } from '../src/amenities/amenities.service.js';
 import { createE2eApp } from './helpers/create-e2e-app.js';
 
 const UUID_PATTERN =
@@ -42,6 +43,27 @@ describe('Request id (e2e)', () => {
       .expect(401);
 
     expect(response.headers['x-request-id']).toMatch(UUID_PATTERN);
+  });
+
+  it('returns the request id in the body of an internal server error', async () => {
+    const findAllSpy = vi
+      .spyOn(AmenitiesService.prototype, 'findAll')
+      .mockRejectedValue(new Error('Unexpected failure'));
+
+    try {
+      const response = await request(app.getHttpServer())
+        .get('/amenities')
+        .expect(500);
+
+      expect(response.body).toEqual({
+        statusCode: 500,
+        error: 'Internal Server Error',
+        message: 'Internal server error',
+        requestId: response.headers['x-request-id'],
+      });
+    } finally {
+      findAllSpy.mockRestore();
+    }
   });
 
   it.each([

@@ -15,4 +15,5 @@ export class ErrorResponseDto {
   errorCode?: ErrorCode;
   invalidFields?: string[];
   missingAmenityIds?: string[];
+  requestId?: string;
 }

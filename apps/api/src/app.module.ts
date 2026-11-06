@@ -25,6 +25,7 @@ import { genRequestId } from './common/logging/request-id.js';
     LoggerModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService<Env, true>) => ({
+        assignResponse: true,
         pinoHttp: {
           level: configService.getOrThrow('LOG_LEVEL', { infer: true }),
           genReqId: genRequestId,
