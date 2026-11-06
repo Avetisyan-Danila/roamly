@@ -204,6 +204,9 @@ importers:
       '@prisma/client':
         specifier: ^7.10.0
         version: 7.10.0(prisma@7.10.0(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(magicast@0.5.5)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@6.0.3))(typescript@6.0.3)
+      '@prisma/sqlcommenter-query-tags':
+        specifier: 7.10.0
+        version: 7.10.0
       argon2:
         specifier: ^0.45.1
         version: 0.45.1
@@ -1897,6 +1900,9 @@ packages:
 
   '@prisma/query-plan-executor@7.2.0':
     resolution: {integrity: sha512-EOZmNzcV8uJ0mae3DhTsiHgoNCuu1J9mULQpGCh62zN3PxPTd+qI9tJvk5jOst8WHKQNwJWR3b39t0XvfBB0WQ==}
+
+  '@prisma/sqlcommenter-query-tags@7.10.0':
+    resolution: {integrity: sha512-cLgf7VbpYD8CCtVUZoTJruLfdSoHS30WhSI7boEDI8Iwb6vqEBLeKTxslhwJrbtCG6TxSUaKoIsE8kjVzU/n6Q==}
 
   '@prisma/streams-local@0.1.11':
     resolution: {integrity: sha512-0TcebL559MByKqTJ+SsrFIEg228iw8UCVRFckzgfRSiJqczhs+MuAgWOF9lnOIV/IVqvu+KMnFTH0eDeTQMpUg==}
@@ -8064,6 +8070,8 @@ snapshots:
       '@prisma/debug': 7.2.0
 
   '@prisma/query-plan-executor@7.2.0': {}
+
+  '@prisma/sqlcommenter-query-tags@7.10.0': {}
 
   '@prisma/streams-local@0.1.11':
     dependencies:

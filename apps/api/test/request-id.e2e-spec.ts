@@ -2,6 +2,7 @@ import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 
 import { AmenitiesService } from '../src/amenities/amenities.service.js';
+import type { PrismaService } from '../src/prisma/prisma.service.js';
 import { createE2eApp } from './helpers/create-e2e-app.js';
 
 const UUID_PATTERN =
@@ -9,9 +10,10 @@ const UUID_PATTERN =
 
 describe('Request id (e2e)', () => {
   let app: INestApplication;
+  let prisma: PrismaService;
 
   beforeAll(async () => {
-    ({ app } = await createE2eApp());
+    ({ app, prisma } = await createE2eApp());
   });
 
   afterAll(async () => {
@@ -64,6 +66,33 @@ describe('Request id (e2e)', () => {
     } finally {
       findAllSpy.mockRestore();
     }
+  });
+
+  it('tags SQL queries with the request id', async () => {
+    let executedSql: string | undefined;
+
+    const findAllSpy = vi
+      .spyOn(AmenitiesService.prototype, 'findAll')
+      .mockImplementation(async () => {
+        const [row] = await prisma.$queryRaw<
+          { query: string }[]
+        >`SELECT current_query() AS query`;
+
+        executedSql = row.query;
+
+        return [];
+      });
+
+    try {
+      await request(app.getHttpServer())
+        .get('/amenities')
+        .set('X-Request-Id', 'tagged-request')
+        .expect(200);
+    } finally {
+      findAllSpy.mockRestore();
+    }
+
+    expect(executedSql).toContain("requestId='tagged-request'");
   });
 
   it.each([

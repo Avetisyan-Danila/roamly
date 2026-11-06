@@ -1,5 +1,6 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { PrismaPg } from '@prisma/adapter-pg';
+import { queryTags } from '@prisma/sqlcommenter-query-tags';
 import { PrismaClient } from '../generated/prisma/client.js';
 import { ConfigService } from '@nestjs/config';
 
@@ -14,7 +15,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
       }),
     });
 
-    super({ adapter });
+    super({ adapter, comments: [queryTags()] });
   }
 
   async onModuleInit() {

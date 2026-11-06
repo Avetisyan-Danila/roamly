@@ -1,4 +1,8 @@
-import { Module } from '@nestjs/common';
+import {
+  type MiddlewareConsumer,
+  Module,
+  type NestModule,
+} from '@nestjs/common';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { StorageModule } from './storage/storage.module.js';
 import { AuthModule } from './auth/auth.module.js';
@@ -14,6 +18,7 @@ import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { ScheduleModule } from '@nestjs/schedule';
 import { LoggerModule } from 'nestjs-pino';
 import { genRequestId } from './common/logging/request-id.js';
+import { queryTagsMiddleware } from './common/logging/query-tags.middleware.js';
 
 @Module({
   imports: [
@@ -64,4 +69,8 @@ import { genRequestId } from './common/logging/request-id.js';
     },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(queryTagsMiddleware).forRoutes('{*splat}');
+  }
+}
