@@ -1,6 +1,11 @@
 import { z } from 'zod';
 
 const envSchema = z.object({
+  // Logging
+  LOG_LEVEL: z
+    .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'])
+    .default('info'),
+
   // Database
   DATABASE_URL: z.url(),
 
