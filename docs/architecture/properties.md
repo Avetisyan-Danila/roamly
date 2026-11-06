@@ -38,7 +38,7 @@ Completeness of a published property is enforced by `publish`, not by the databa
 | `GET /properties/drafts/:id` | owner | `200` draft | `404` missing, not yours or not a draft |
 | `PATCH /properties/drafts/:id` | owner | `200` draft | `400` empty body or invalid data, `409` no longer a draft |
 | `POST /properties/:id/publish` | owner | `201` property | `409` already published or concurrent change, `422` incomplete or no photo |
-| `GET /properties/:id` | public | `200` property with photos | `404` missing or draft |
+| `GET /properties/:id` | public | `200` property with photos and host first name | `404` missing or draft |
 | `PATCH /properties/:id` | owner | `200` property | `400` invalid data or `null`, `409` not published |
 | `DELETE /properties/:id` | owner | `204` | `409` concurrent change |
 
@@ -131,3 +131,4 @@ Publish and the wizard use the same function, so they cannot disagree on what is
 3. Only the owner can read a draft or modify a property.
 4. Every write repeats its status condition in the database query.
 5. Drafts are never returned by public endpoints.
+6. Public responses expose only the host's first name. The owner is loaded with `select: { firstName: true }`, so email and password hash never leave the database.
