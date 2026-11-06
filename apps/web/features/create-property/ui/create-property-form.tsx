@@ -73,7 +73,7 @@ export function CreatePropertyForm({
 
 	const [isSaving, setIsSaving] = useState(false)
 
-	const [isPublished, setIsPublished] = useState(false)
+	const [publishedId, setPublishedId] = useState<string | null>(null)
 
 	const [amenitiesState, setAmenitiesState] = useState<AmenitiesState>({
 		status: "loading",
@@ -191,9 +191,9 @@ export function CreatePropertyForm({
 		setIsSaving(true)
 
 		try {
-			await publishDraft(draftId)
+			const published = await publishDraft(draftId)
 
-			setIsPublished(true)
+			setPublishedId(published.id)
 		} catch (error) {
 			const { message, step } = getPublishError(error)
 
@@ -275,7 +275,7 @@ export function CreatePropertyForm({
 					</form>
 
 					<PropertyPublishedDialog
-						open={isPublished}
+						propertyId={publishedId}
 						onCreateAnother={onCreateAnother}
 					/>
 				</DraftPhotosContext.Provider>

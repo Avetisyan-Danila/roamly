@@ -11,17 +11,17 @@ import {
 } from "@/shared/ui/alert-dialog"
 
 type PropertyPublishedDialogProps = {
-	open: boolean
+	propertyId: string | null
 	onCreateAnother: () => void
 }
 
 export function PropertyPublishedDialog({
-	open,
+	propertyId,
 	onCreateAnother,
 }: PropertyPublishedDialogProps) {
 	return (
-		<AlertDialog open={open}>
-			<AlertDialogContent>
+		<AlertDialog open={propertyId !== null}>
+			<AlertDialogContent className="data-[size=default]:sm:max-w-md">
 				<AlertDialogHeader>
 					<AlertDialogTitle>Property published</AlertDialogTitle>
 
@@ -35,9 +35,15 @@ export function PropertyPublishedDialog({
 						Create another
 					</AlertDialogAction>
 
-					<AlertDialogAction asChild>
+					<AlertDialogAction variant="outline" asChild>
 						<Link href="/host/properties" replace>
 							Go to my properties
+						</Link>
+					</AlertDialogAction>
+
+					<AlertDialogAction asChild>
+						<Link href={`/property/${propertyId}`} replace>
+							View listing
 						</Link>
 					</AlertDialogAction>
 				</AlertDialogFooter>
