@@ -17,6 +17,7 @@ ADRs are not edited after acceptance. A changed decision gets a new ADR that sup
 | [007](007-photo-limit-under-concurrency.md) | Photo limit under concurrency | Accepted |
 | [008](008-drafts-as-status-on-single-table.md) | Drafts as a status on a single table | Accepted |
 | [009](009-draft-completeness-owned-by-server.md) | Draft completeness owned by the server | Accepted |
+| [010](010-structured-logs-and-request-id.md) | Structured logs and request id propagation | Accepted |
 
 ## Template
 
