@@ -6,6 +6,7 @@ import {
 	PropertyFacts,
 	PropertyGallery,
 } from "@/entities/property"
+import { BookingWidget } from "@/features/book-property"
 import { ApiError } from "@/shared/api/server"
 
 export default async function PropertyPage({
@@ -27,22 +28,32 @@ export default async function PropertyPage({
 
 			<PropertyGallery photos={property.photos} title={property.title} />
 
-			<div className="flex flex-col divide-y">
-				<section className="pb-6">
-					<PropertyFacts property={property} />
-				</section>
-
-				<section className="py-6">
-					<p className="whitespace-pre-line">{property.description}</p>
-				</section>
-
-				{property.amenities.length > 0 && (
-					<section className="flex flex-col gap-4 py-6">
-						<h2 className="text-xl font-semibold">What this place offers</h2>
-
-						<PropertyAmenities amenities={property.amenities} />
+			<div className="grid gap-8 md:grid-cols-[1fr_22rem]">
+				<div className="flex flex-col divide-y">
+					<section className="pb-6">
+						<PropertyFacts property={property} />
 					</section>
-				)}
+
+					<section className="py-6">
+						<p className="whitespace-pre-line">{property.description}</p>
+					</section>
+
+					{property.amenities.length > 0 && (
+						<section className="flex flex-col gap-4 py-6">
+							<h2 className="text-xl font-semibold">What this place offers</h2>
+
+							<PropertyAmenities amenities={property.amenities} />
+						</section>
+					)}
+				</div>
+
+				<aside className="md:sticky md:top-4 md:self-start">
+					<BookingWidget
+						pricePerNight={property.pricePerNight}
+						currency={property.currency}
+						maxGuests={property.maxGuests}
+					/>
+				</aside>
 			</div>
 		</main>
 	)
